@@ -60,7 +60,7 @@ export function Dashboard() {
     .slice(0, 6)
 
   return (
-    <div className="screen">
+    <div className="screen screen-dash">
       <div className="hero-card col-sm">
         <span className="hero-label">Net worth · my money only</span>
         <span className="hero-balance">{fmtTHB(netWorthTHB(data))}</span>
@@ -136,33 +136,35 @@ export function Dashboard() {
         </>
       )}
 
-      <div className="spread">
-        <span className="label">Recent activity</span>
-        {recent.length > 0 && (
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/ledger')}>
-            View all
-          </button>
+      <div className="col-sm">
+        <div className="spread">
+          <span className="label">Recent activity</span>
+          {recent.length > 0 && (
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/ledger')}>
+              View all
+            </button>
+          )}
+        </div>
+
+        {recent.length === 0 ? (
+          <EmptyState
+            icon="👋"
+            title="Welcome to Spendwise"
+            hint="Record your first income or expense with the + button below."
+            action={
+              <button className="btn btn-primary" onClick={() => openSheet({})}>
+                Add your first entry
+              </button>
+            }
+          />
+        ) : (
+          <div className="list">
+            {recent.map((tx) => (
+              <TxRow key={tx.id} tx={tx} onClick={() => openSheet({ tx })} />
+            ))}
+          </div>
         )}
       </div>
-
-      {recent.length === 0 ? (
-        <EmptyState
-          icon="👋"
-          title="Welcome to Spendwise"
-          hint="Record your first income or expense with the + button below."
-          action={
-            <button className="btn btn-primary" onClick={() => openSheet({})}>
-              Add your first entry
-            </button>
-          }
-        />
-      ) : (
-        <div className="list">
-          {recent.map((tx) => (
-            <TxRow key={tx.id} tx={tx} onClick={() => openSheet({ tx })} />
-          ))}
-        </div>
-      )}
     </div>
   )
 }

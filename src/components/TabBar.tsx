@@ -21,12 +21,16 @@ export function TabBar({ onAdd }: { onAdd: () => void }) {
   const [home, ledger, reports, more] = tabs
   return (
     <nav className="tabbar">
+      <div className="tabbar-brand" aria-hidden>
+        Spend<span>wise</span>
+      </div>
       <div className="tabbar-inner">
         {[home, ledger].map((t) => (
           <TabButton key={t.to} tab={t} on={isActive(t.to, route)} />
         ))}
         <button className="tab-add" onClick={onAdd} aria-label="Add transaction">
           <Icon name="plus" size={26} />
+          <span className="tab-add-label">New entry</span>
         </button>
         {[reports, more].map((t) => (
           <TabButton key={t.to} tab={t} on={isActive(t.to, route)} />

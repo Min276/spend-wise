@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { AppData, Budgets, EntityKind, EntityMap, ID, Settings, Tx } from './types.ts'
-import { defaultSettings, seedData } from './seed.ts'
+import { defaultSettings, migrateAccountsV2, seedData } from './seed.ts'
 import { shiftDate, todayStr } from './money.ts'
 
 const KEY = 'spendwise:v1'
@@ -29,13 +29,18 @@ export type Action =
 export function normalizeData(d: Partial<AppData>): AppData {
   const seed = seedData()
   const defaults = defaultSettings()
+  const storedSeedV = d.settings?.seedV ?? 1
+  let accounts = d.accounts ?? seed.accounts
+  if (storedSeedV < 2) accounts = migrateAccountsV2(accounts)
   return {
     ...seed,
     ...d,
+    accounts,
     schema: 1,
     settings: {
       ...defaults,
       ...d.settings,
+      seedV: 2,
       reminders: { ...defaults.reminders, ...d.settings?.reminders },
       firedKeys: d.settings?.firedKeys ?? {},
     },

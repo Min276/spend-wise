@@ -106,7 +106,7 @@ export function Reports() {
   const hasAny = data.transactions.length > 0
 
   return (
-    <div className="screen">
+    <div className="screen screen-reports">
       <div className="screen-head">
         <h1>Reports</h1>
       </div>
@@ -162,7 +162,7 @@ export function Reports() {
         />
       ) : (
         <>
-          <div className="card">
+          <div className="card span2">
             <div className="grid3">
               <span className="col-sm" style={{ gap: 2 }}>
                 <span className="xs muted">Income</span>

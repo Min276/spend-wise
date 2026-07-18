@@ -1,4 +1,4 @@
-import type { AppData, Settings } from './types.ts'
+import type { Account, AppData, Settings } from './types.ts'
 
 export const CHART_PALETTE = [
   '#0D9488', '#6366F1', '#F59E0B', '#F43F5E', '#10B981', '#8B5CF6',
@@ -8,6 +8,7 @@ export const CHART_PALETTE = [
 export function defaultSettings(): Settings {
   return {
     theme: 'system',
+    seedV: 2,
     thresholdNotifs: true,
     reminders: {
       morningBrief: { enabled: true, time: '09:00' },
@@ -21,13 +22,35 @@ export function defaultSettings(): Settings {
   }
 }
 
+const ACCOUNT_ORDER = ['acc-tmn', 'acc-cash', 'acc-kbank', 'acc-wise']
+
+// One-time upgrade of existing data to the v2 account setup: shorter names,
+// a Cash account, and the preferred order. Never touches user-renamed accounts.
+export function migrateAccountsV2(accounts: Account[]): Account[] {
+  const out = accounts.map((a) =>
+    a.id === 'acc-kbank' && a.name === 'KPlus (KBank)'
+      ? { ...a, name: 'KBank' }
+      : a.id === 'acc-tmn' && a.name === 'TrueMoney Wallet'
+        ? { ...a, name: 'TrueMoney' }
+        : a,
+  )
+  if (!out.some((a) => a.id === 'acc-cash' || a.name.trim().toLowerCase() === 'cash'))
+    out.push({ id: 'acc-cash', name: 'Cash', type: 'Cash', currency: 'THB', fxRateToTHB: 1, icon: '💰', color: '#84CC16' })
+  const rank = (a: Account) => {
+    const i = ACCOUNT_ORDER.indexOf(a.id)
+    return i === -1 ? ACCOUNT_ORDER.length : i
+  }
+  return out.sort((a, b) => rank(a) - rank(b))
+}
+
 export function seedData(): AppData {
   return {
     schema: 1,
     accounts: [
+      { id: 'acc-tmn', name: 'TrueMoney', type: 'E-wallet', currency: 'THB', fxRateToTHB: 1, icon: '📱', color: '#F97316' },
+      { id: 'acc-cash', name: 'Cash', type: 'Cash', currency: 'THB', fxRateToTHB: 1, icon: '💰', color: '#84CC16' },
+      { id: 'acc-kbank', name: 'KBank', type: 'Bank', currency: 'THB', fxRateToTHB: 1, icon: '🏦', color: '#10B981' },
       { id: 'acc-wise', name: 'Wise', type: 'Multi-currency', currency: 'THB', fxRateToTHB: 1, icon: '🌐', color: '#0EA5E9' },
-      { id: 'acc-kbank', name: 'KPlus (KBank)', type: 'Bank', currency: 'THB', fxRateToTHB: 1, icon: '🏦', color: '#10B981' },
-      { id: 'acc-tmn', name: 'TrueMoney Wallet', type: 'E-wallet', currency: 'THB', fxRateToTHB: 1, icon: '📱', color: '#F97316' },
     ],
     incomeSources: [
       { id: 'src-salary', name: 'Salary' },

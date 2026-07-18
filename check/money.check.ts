@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import type { AppData, Tx } from '../src/lib/types.ts'
-import { seedData } from '../src/lib/seed.ts'
+import { migrateAccountsV2, seedData } from '../src/lib/seed.ts'
 import {
   accountRaw,
   balanceSeriesTHB,
@@ -135,5 +135,28 @@ const fired: AppData = {
   settings: { ...over.settings, firedKeys: { [`d-over-${today}`]: today } },
 }
 assert.ok(!newAlerts(fired).some((e) => e.key === `d-over-${today}`), 'no duplicate same-day alert')
+
+// v2 account migration: renames old seed names, adds Cash, applies the order
+const legacy = migrateAccountsV2([
+  { id: 'acc-wise', name: 'Wise', type: 'Multi-currency', currency: 'THB', fxRateToTHB: 1, icon: '🌐', color: '#0EA5E9' },
+  { id: 'acc-kbank', name: 'KPlus (KBank)', type: 'Bank', currency: 'THB', fxRateToTHB: 1, icon: '🏦', color: '#10B981' },
+  { id: 'acc-tmn', name: 'TrueMoney Wallet', type: 'E-wallet', currency: 'THB', fxRateToTHB: 1, icon: '📱', color: '#F97316' },
+])
+assert.deepEqual(
+  legacy.map((a) => a.name),
+  ['TrueMoney', 'Cash', 'KBank', 'Wise'],
+  'legacy seed migrates to renamed, ordered accounts with Cash inserted',
+)
+
+const custom = migrateAccountsV2([
+  { id: 'acc-kbank', name: 'My K', type: 'Bank', currency: 'THB', fxRateToTHB: 1, icon: '🏦', color: '#10B981' },
+  { id: 'x1', name: 'Krungsri', type: 'Bank', currency: 'THB', fxRateToTHB: 1, icon: '🏦', color: '#F43F5E' },
+])
+assert.deepEqual(
+  custom.map((a) => a.name),
+  ['Cash', 'My K', 'Krungsri'],
+  'user renames survive; custom accounts keep relative order after seeded ones',
+)
+assert.equal(migrateAccountsV2(legacy).length, legacy.length, 'migration is idempotent — no duplicate Cash')
 
 console.log('✓ money.check: all assertions passed')

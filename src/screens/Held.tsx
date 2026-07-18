@@ -20,7 +20,6 @@ import { DeleteEntityDialog, NameForm } from './Manage'
 
 export function Reconciliation() {
   const { data } = useStore()
-  const aunt = data.heldParties.find((p) => p.isPrimary)
   const withHeld = data.accounts.filter((a) => Math.abs(heldInAccount(data.transactions, a.id)) > 0.005)
   if (withHeld.length === 0) return null
   return (
@@ -28,8 +27,9 @@ export function Reconciliation() {
       <span className="label">Reconciliation</span>
       {withHeld.map((acc) => {
         const raw = accountRaw(data.transactions, acc.id)
-        const auntHere = aunt ? heldPartyInAccount(data.transactions, aunt.id, acc.id) : 0
-        const othersHere = heldInAccount(data.transactions, acc.id) - auntHere
+        const perPerson = data.heldParties
+          .map((p) => ({ p, held: heldPartyInAccount(data.transactions, p.id, acc.id) }))
+          .filter((x) => Math.abs(x.held) > 0.005)
         return (
           <div key={acc.id} className="recon">
             <div className="recon-row">
@@ -38,20 +38,14 @@ export function Reconciliation() {
               </span>
               <span className="money">{fmtMoney(raw, acc.currency)}</span>
             </div>
-            {Math.abs(auntHere) > 0.005 && (
-              <div className="recon-row">
-                <span className="amt-held">− {aunt!.name}</span>
-                <span className="money amt-held">{fmtMoney(auntHere, acc.currency)}</span>
+            {perPerson.map(({ p, held }) => (
+              <div key={p.id} className="recon-row">
+                <span className="amt-held">− {p.name}'s money</span>
+                <span className="money amt-held">{fmtMoney(held, acc.currency)}</span>
               </div>
-            )}
-            {Math.abs(othersHere) > 0.005 && (
-              <div className="recon-row">
-                <span className="amt-held">− Others</span>
-                <span className="money amt-held">{fmtMoney(othersHere, acc.currency)}</span>
-              </div>
-            )}
+            ))}
             <div className="recon-row total">
-              <span>= My money in {acc.name}</span>
+              <span>= My own money in {acc.name}</span>
               <span className="money">{fmtMoney(spendable(data.transactions, acc.id), acc.currency)}</span>
             </div>
           </div>

@@ -187,7 +187,7 @@ export function Funds() {
   const totalSaved = data.funds.reduce((s, f) => s + fundBalanceTHB(data, f.id), 0)
 
   return (
-    <div className="screen">
+    <div className="screen screen-funds">
       <div className="screen-head">
         <span className="rowx">
           <BackButton to="/more" />
@@ -198,7 +198,7 @@ export function Funds() {
         </button>
       </div>
 
-      <div className="card col-sm">
+      <div className="card col-sm span2">
         <div className="spread">
           <span className="label">Saved {period === 'day' ? 'today' : period === 'month' ? 'this month' : 'this year'}</span>
           <span className="label">Total in funds</span>
