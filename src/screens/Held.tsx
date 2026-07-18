@@ -18,7 +18,7 @@ import { Icon } from '../components/Icons'
 import { TxRow } from '../components/TxRow'
 import { DeleteEntityDialog, NameForm } from './Manage'
 
-function Reconciliation() {
+export function Reconciliation() {
   const { data } = useStore()
   const aunt = data.heldParties.find((p) => p.isPrimary)
   const withHeld = data.accounts.filter((a) => Math.abs(heldInAccount(data.transactions, a.id)) > 0.005)

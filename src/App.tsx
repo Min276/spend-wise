@@ -1,9 +1,12 @@
-import { useCallback, useState } from 'react'
-import { StoreProvider } from './lib/store'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { StoreProvider, useStore } from './lib/store'
 import { SheetCtx } from './lib/sheet'
 import { useRoute } from './lib/router'
+import { newAlerts } from './lib/alerts'
+import { notifyAlert } from './lib/notify'
 import { AddSheet, type SheetOpts } from './components/AddSheet'
 import { TabBar } from './components/TabBar'
+import { ToastProvider, useToast } from './components/Toasts'
 import { Dashboard } from './screens/Dashboard'
 import { Ledger } from './screens/Ledger'
 import { More } from './screens/More'
@@ -11,6 +14,7 @@ import { Settings } from './screens/Settings'
 import { ManageAccounts, ManageCategories, ManagePeople, ManageSources } from './screens/Manage'
 import { Funds } from './screens/Funds'
 import { Held, HeldHistory } from './screens/Held'
+import { Budgets } from './screens/Budgets'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -39,7 +43,7 @@ function Screens() {
     case '/held':
       return <Held />
     case '/budgets':
-      return <Placeholder title="Budgets & Limits" />
+      return <Budgets />
     case '/settings':
       return <Settings />
     case '/settings/accounts':
@@ -59,11 +63,35 @@ function Screens() {
   }
 }
 
+// Fires threshold alerts the instant a transaction or budget change crosses a
+// limit, deduped per day/month via settings.firedKeys.
+function AlertWatcher() {
+  const { data, dispatch } = useStore()
+  const toast = useToast()
+  const prev = useRef({ txs: data.transactions, budgets: data.budgets })
+
+  useEffect(() => {
+    const changed = prev.current.txs !== data.transactions || prev.current.budgets !== data.budgets
+    prev.current = { txs: data.transactions, budgets: data.budgets }
+    if (!changed) return
+    const events = newAlerts(data)
+    if (!events.length) return
+    for (const e of events) {
+      toast({ kind: e.kind, title: e.title, body: e.body })
+      notifyAlert(data, e)
+    }
+    dispatch({ type: 'alerts/fired', keys: events.map((e) => e.key) })
+  }, [data, toast, dispatch])
+
+  return null
+}
+
 function Shell() {
   const [sheet, setSheet] = useState<SheetOpts | null>(null)
   const open = useCallback((opts: SheetOpts) => setSheet(opts), [])
   return (
     <SheetCtx.Provider value={open}>
+      <AlertWatcher />
       <div className="app">
         <Screens />
         <TabBar onAdd={() => open({})} />
@@ -76,7 +104,9 @@ function Shell() {
 export default function App() {
   return (
     <StoreProvider>
-      <Shell />
+      <ToastProvider>
+        <Shell />
+      </ToastProvider>
     </StoreProvider>
   )
 }
