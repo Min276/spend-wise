@@ -1,0 +1,177 @@
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/inter-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url('/fonts/space-grotesk-var.woff2') format('woff2');
+}
+
+:root {
+  /* money semantics — one color per kind of money */
+  --income: #059669;
+  --expense: #DC2626;
+  --savings: #4F46E5;
+  --held: #D97706;
+  --held-bright: #F59E0B;
+  --primary: #0D9488;
+  --on-primary: #FFFFFF;
+
+  /* surfaces */
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --sunken: #F1F5F9;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  /* chart palette (12 hues, in order) */
+  --chart-1: #0D9488;
+  --chart-2: #6366F1;
+  --chart-3: #F59E0B;
+  --chart-4: #F43F5E;
+  --chart-5: #10B981;
+  --chart-6: #8B5CF6;
+  --chart-7: #0EA5E9;
+  --chart-8: #F97316;
+  --chart-9: #EC4899;
+  --chart-10: #84CC16;
+  --chart-11: #06B6D4;
+  --chart-12: #A16207;
+
+  /* type */
+  --font-display: 'Space Grotesk', 'Inter', -apple-system, system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, system-ui, 'Segoe UI', Roboto, 'Noto Sans Thai', sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 1.875rem;
+  --fs-3xl: 2.25rem;
+  --fs-hero: 3rem;
+
+  /* spacing (4px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* radius */
+  --r-input: 12px;
+  --r-card: 20px;
+  --r-hero: 28px;
+  --r-full: 999px;
+
+  /* shadows */
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-elev: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-overlay: 0 12px 32px rgba(15, 23, 42, 0.12);
+
+  --focus-ring: 0 0 0 3px rgba(20, 184, 166, 0.45);
+  --grad-hero: linear-gradient(135deg, #059669, #0D9488);
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --income: #34D399;
+  --expense: #F87171;
+  --savings: #818CF8;
+  --held: #FBBF24;
+  --held-bright: #FBBF24;
+  --primary: #14B8A6;
+  --on-primary: #04211D;
+
+  --bg: #060B14;
+  --surface: #0F172A;
+  --sunken: #0B1220;
+  --border: #1E293B;
+  --text: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-elev: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  --grad-hero: linear-gradient(135deg, #047857, #0F766E);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.money {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
