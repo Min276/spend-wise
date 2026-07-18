@@ -126,6 +126,8 @@ const paths = {
       <path d="M16 3v4M8 3v4M3 10h18" />
     </>
   ),
+  chat: <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z" />,
+  send: <path d="m22 2-7 20-4-9-9-4Zm0 0L11 13" />,
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof paths

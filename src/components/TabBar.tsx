@@ -6,6 +6,7 @@ const MORE_ROUTES = ['/more', '/funds', '/held', '/budgets', '/settings']
 const tabs: { to: string; icon: IconName; label: string }[] = [
   { to: '/', icon: 'home', label: 'Home' },
   { to: '/ledger', icon: 'list', label: 'Ledger' },
+  { to: '/chat', icon: 'chat', label: 'Chat' },
   { to: '/reports', icon: 'chart', label: 'Reports' },
   { to: '/more', icon: 'more', label: 'More' },
 ]
@@ -18,7 +19,7 @@ function isActive(to: string, route: string) {
 
 export function TabBar({ onAdd }: { onAdd: () => void }) {
   const route = useRoute()
-  const [home, ledger, reports, more] = tabs
+  const [home, ledger, chat, reports, more] = tabs
   return (
     <nav className="tabbar">
       <div className="tabbar-brand" aria-hidden>
@@ -32,7 +33,7 @@ export function TabBar({ onAdd }: { onAdd: () => void }) {
           <Icon name="plus" size={26} />
           <span className="tab-add-label">New entry</span>
         </button>
-        {[reports, more].map((t) => (
+        {[chat, reports, more].map((t) => (
           <TabButton key={t.to} tab={t} on={isActive(t.to, route)} />
         ))}
       </div>

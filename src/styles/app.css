@@ -67,7 +67,7 @@
   max-width: 480px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   height: 64px;
 }
 
@@ -738,6 +738,93 @@ input[type='checkbox'].switch:checked::after {
 .empty h3 { color: var(--text-secondary); font-size: var(--fs-base); }
 .empty p { font-size: var(--fs-sm); max-width: 260px; }
 
+/* ---------- assistant chat ---------- */
+.screen-chat {
+  height: calc(100dvh - 64px - env(safe-area-inset-bottom));
+  padding-bottom: 0;
+  gap: var(--sp-2);
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+}
+
+.bubble {
+  max-width: 92%;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.bubble p {
+  margin: 0;
+}
+
+.bubble-user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 16px 16px 4px 16px;
+}
+
+.bubble-bot {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: var(--shadow-card);
+  min-width: min(280px, 80%);
+}
+
+.chat-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-xs);
+}
+
+.chat-table th {
+  text-align: left;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 4px 8px 4px 0;
+}
+
+.chat-table td {
+  padding: 5px 8px 5px 0;
+  border-top: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.chat-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.chat-inputbar {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0 var(--sp-3);
+  background: var(--bg);
+  flex: none;
+}
+
 /* ---------- desktop (mobile layout untouched below 900px) ---------- */
 @media (min-width: 900px) {
   .app {
@@ -857,6 +944,11 @@ input[type='checkbox'].switch:checked::after {
 
   .hero-stats {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .screen-chat {
+    height: calc(100dvh - var(--sp-6));
+    max-width: 760px;
   }
 
   /* sheets read as centered dialogs on big screens */

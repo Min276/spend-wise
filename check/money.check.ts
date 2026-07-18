@@ -23,6 +23,7 @@ import {
   todayStr,
 } from '../src/lib/money.ts'
 import { evaluateAlerts, newAlerts } from '../src/lib/alerts.ts'
+import { assist, type Block } from '../src/lib/assistant.ts'
 
 const today = todayStr()
 const yday = shiftDate(today, -1)
@@ -158,5 +159,60 @@ assert.deepEqual(
   'user renames survive; custom accounts keep relative order after seeded ones',
 )
 assert.equal(migrateAccountsV2(legacy).length, legacy.length, 'migration is idempotent — no duplicate Cash')
+
+// assistant: command parsing produces the right proposed transactions
+const seedFull: AppData = { ...seedData(), heldParties: data.heldParties }
+const confirmOf = (blocks: Block[]) => {
+  const c = blocks.find((b) => b.kind === 'confirm')
+  assert.ok(c && c.kind === 'confirm', 'expected a confirm block, got: ' + JSON.stringify(blocks[0]))
+  return c.tx
+}
+
+let ptx = confirmOf(assist(seedFull, 'add 500 food'))
+assert.equal(ptx.type, 'expense')
+assert.equal(ptx.amount, 500)
+assert.equal(ptx.categoryId, 'cat-food', '"food" matches Daily Meals & Food')
+
+ptx = confirmOf(assist(seedFull, 'add 30000 as salary to kbank'))
+assert.equal(ptx.type, 'income')
+assert.equal(ptx.sourceId, 'src-salary')
+assert.equal(ptx.accountId, 'acc-kbank')
+
+ptx = confirmOf(assist(seedFull, '5000 held for aunt in kbank'))
+assert.equal(ptx.type, 'held_add')
+assert.equal(ptx.personId, 'aunt')
+assert.equal(ptx.accountId, 'acc-kbank')
+
+ptx = confirmOf(assist(seedFull, 'returned 2000 to aunt'))
+assert.equal(ptx.type, 'held_reduce')
+assert.equal(ptx.personId, 'aunt')
+
+ptx = confirmOf(assist(seedFull, 'save 500 to education'))
+assert.equal(ptx.type, 'fund_contribute')
+assert.equal(ptx.fundId, 'fund-education')
+
+ptx = confirmOf(assist(seedFull, 'withdraw 200 from education fund'))
+assert.equal(ptx.type, 'fund_withdraw')
+
+ptx = confirmOf(assist(seedFull, 'transfer 1000 from wise to kbank'))
+assert.equal(ptx.type, 'transfer')
+assert.equal(ptx.accountId, 'acc-wise')
+assert.equal(ptx.toAccountId, 'acc-kbank')
+
+ptx = confirmOf(assist(seedFull, 'spent 1200 rent yesterday note july'))
+assert.equal(ptx.categoryId, 'cat-rent')
+assert.equal(ptx.date, yday)
+assert.equal(ptx.note, 'july')
+
+ptx = confirmOf(assist(seedFull, 'add 1.5k travel'))
+assert.equal(ptx.amount, 1500, 'k suffix multiplies by 1000')
+
+// assistant: queries answer without mutating
+const q = assist(data, 'how much did i spend this month')
+assert.ok(q.some((b) => b.kind === 'text' || b.kind === 'table'), 'spend query answers')
+assert.ok(!q.some((b) => b.kind === 'confirm'), 'queries never propose transactions')
+assert.ok(assist(data, 'report this month').some((b) => b.kind === 'stats'), 'report renders stats')
+assert.ok(assist(data, 'balance').some((b) => b.kind === 'table'), 'balance lists accounts')
+assert.ok(assist(data, 'who do i owe').some((b) => b.kind === 'table'), 'held query lists people')
 
 console.log('✓ money.check: all assertions passed')

@@ -17,6 +17,7 @@ import { Held, HeldHistory } from './screens/Held'
 import { Budgets } from './screens/Budgets'
 import { Reports } from './screens/Reports'
 import { NotifSettings } from './screens/NotifSettings'
+import { Chat } from './screens/Chat'
 
 function Screens() {
   const route = useRoute()
@@ -25,6 +26,8 @@ function Screens() {
       return <Dashboard />
     case '/ledger':
       return <Ledger />
+    case '/chat':
+      return <Chat />
     case '/reports':
       return <Reports />
     case '/more':
