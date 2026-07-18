@@ -3,7 +3,7 @@ import { StoreProvider, useStore } from './lib/store'
 import { SheetCtx } from './lib/sheet'
 import { useRoute } from './lib/router'
 import { newAlerts } from './lib/alerts'
-import { notifyAlert } from './lib/notify'
+import { notifyAlert, startReminderScheduler } from './lib/notify'
 import { AddSheet, type SheetOpts } from './components/AddSheet'
 import { TabBar } from './components/TabBar'
 import { ToastProvider, useToast } from './components/Toasts'
@@ -16,17 +16,7 @@ import { Funds } from './screens/Funds'
 import { Held, HeldHistory } from './screens/Held'
 import { Budgets } from './screens/Budgets'
 import { Reports } from './screens/Reports'
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="screen">
-      <div className="screen-head">
-        <h1>{title}</h1>
-      </div>
-      <div className="card sub">Coming soon.</div>
-    </div>
-  )
-}
+import { NotifSettings } from './screens/NotifSettings'
 
 function Screens() {
   const route = useRoute()
@@ -56,7 +46,7 @@ function Screens() {
     case '/settings/people':
       return <ManagePeople />
     case '/settings/notifications':
-      return <Placeholder title="Notifications" />
+      return <NotifSettings />
     default:
       if (route.startsWith('/held/'))
         return <HeldHistory personId={decodeURIComponent(route.slice('/held/'.length))} />
@@ -87,12 +77,43 @@ function AlertWatcher() {
   return null
 }
 
+// Minute-tick reminder scheduler + service-worker notification-click routing.
+function ReminderScheduler() {
+  const { data, dispatch } = useStore()
+  const toast = useToast()
+  const ref = useRef(data)
+  ref.current = data
+
+  useEffect(
+    () =>
+      startReminderScheduler(
+        () => ref.current,
+        (keys) => dispatch({ type: 'alerts/fired', keys }),
+        (title, body) => toast({ kind: 'ok', title, body }),
+      ),
+    [dispatch, toast],
+  )
+
+  useEffect(() => {
+    const sw = navigator.serviceWorker
+    if (!sw) return
+    const on = (e: MessageEvent) => {
+      if (e.data?.type === 'navigate') location.hash = e.data.route
+    }
+    sw.addEventListener('message', on)
+    return () => sw.removeEventListener('message', on)
+  }, [])
+
+  return null
+}
+
 function Shell() {
   const [sheet, setSheet] = useState<SheetOpts | null>(null)
   const open = useCallback((opts: SheetOpts) => setSheet(opts), [])
   return (
     <SheetCtx.Provider value={open}>
       <AlertWatcher />
+      <ReminderScheduler />
       <div className="app">
         <Screens />
         <TabBar onAdd={() => open({})} />
