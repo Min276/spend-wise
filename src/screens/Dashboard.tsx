@@ -99,9 +99,12 @@ export function Dashboard() {
           {data.accounts.map((a) => {
             const bal = spendable(data.transactions, a.id)
             return (
-              <span className="hero-chip money" key={a.id}>
-                <span aria-hidden>{a.icon}</span> {a.name}: {fmtMoney(bal, a.currency)}
-                {a.currency !== 'THB' && ` (≈${fmtTHB(toTHB(bal, a))})`}
+              <span className="hero-chip" key={a.id}>
+                <span aria-hidden>{a.icon}</span> {a.name}:{' '}
+                <span className="money">
+                  {fmtMoney(bal, a.currency)}
+                  {a.currency !== 'THB' && ` (≈${fmtTHB(toTHB(bal, a))})`}
+                </span>
               </span>
             )
           })}

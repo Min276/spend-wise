@@ -7,6 +7,7 @@ import { notifyAlert, startReminderScheduler } from './lib/notify'
 import { AddSheet, type SheetOpts } from './components/AddSheet'
 import { TabBar } from './components/TabBar'
 import { ToastProvider, useToast } from './components/Toasts'
+import { Icon } from './components/Icons'
 import { Dashboard } from './screens/Dashboard'
 import { Ledger } from './screens/Ledger'
 import { More } from './screens/More'
@@ -118,8 +119,13 @@ function Shell() {
       <ReminderScheduler />
       <div className="app">
         <Screens />
-        <TabBar onAdd={() => open({})} onChat={() => setChatOpen((o) => !o)} chatOpen={chatOpen} />
+        <TabBar onAdd={() => open({})} />
       </div>
+      {!chatOpen && (
+        <button className="chat-fab" onClick={() => setChatOpen(true)} aria-label="Open assistant chat">
+          <Icon name="chat" size={24} />
+        </button>
+      )}
       {chatOpen && (
         <div className="chat-pop">
           <Chat onClose={() => setChatOpen(false)} />

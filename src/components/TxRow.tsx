@@ -80,8 +80,8 @@ export function TxRow({ tx, onClick }: { tx: Tx; onClick?: () => void }) {
       </span>
       <span className="lrow-right">
         <span className={`t money ${amountCls}`}>{amountText}</span>
-        <span className="s money">
-          {foreign ? `≈ ${fmtTHB(toTHB(tx.amount, acc))} · ` : ''}
+        <span className="s">
+          {foreign && <span className="money">≈ {fmtTHB(toTHB(tx.amount, acc))} · </span>}
           {fmtDate(tx.date)}
         </span>
       </span>

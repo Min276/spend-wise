@@ -67,7 +67,7 @@
   max-width: 480px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: 64px;
 }
 
@@ -739,6 +739,27 @@ input[type='checkbox'].switch:checked::after {
 .empty p { font-size: var(--fs-sm); max-width: 260px; }
 
 /* ---------- assistant chat (popup) ---------- */
+.chat-fab {
+  position: fixed;
+  right: var(--sp-4);
+  bottom: calc(64px + env(safe-area-inset-bottom) + var(--sp-5));
+  z-index: 39;
+  width: 54px;
+  height: 54px;
+  border-radius: var(--r-full);
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-overlay);
+  transition: transform 0.15s ease;
+}
+
+.chat-fab:active {
+  transform: scale(0.92);
+}
+
 .chat-pop {
   position: fixed;
   inset: 0;
@@ -843,11 +864,30 @@ input[type='checkbox'].switch:checked::after {
   flex: none;
 }
 
-/* ---------- privacy: blur every money figure ---------- */
+/* ---------- privacy: numbers become ****** ---------- */
 [data-privacy='on'] .money,
 [data-privacy='on'] .hero-balance,
 [data-privacy='on'] .hero-stat .hv,
-[data-privacy='on'] .chat-table td.num,
+[data-privacy='on'] .chat-table td.num {
+  font-size: 0 !important;
+  user-select: none;
+}
+
+[data-privacy='on'] .money::after,
+[data-privacy='on'] .hero-stat .hv::after,
+[data-privacy='on'] .chat-table td.num::after {
+  content: '******';
+  font-size: 0.875rem;
+  letter-spacing: 1px;
+}
+
+[data-privacy='on'] .hero-balance::after {
+  content: '******';
+  font-size: var(--fs-3xl);
+  letter-spacing: 3px;
+}
+
+/* sentences that embed amounts stay blurred instead */
 [data-privacy='on'] .banner,
 [data-privacy='on'] .toast,
 [data-privacy='on'] .bubble p {
@@ -982,6 +1022,11 @@ input[type='checkbox'].switch:checked::after {
 
   .hero-stats {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .chat-fab {
+    right: var(--sp-6);
+    bottom: var(--sp-6);
   }
 
   /* chat floats as a widget panel on desktop */

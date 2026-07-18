@@ -16,15 +16,7 @@ function isActive(to: string, route: string) {
   return route === to || route.startsWith(to + '/')
 }
 
-export function TabBar({
-  onAdd,
-  onChat,
-  chatOpen,
-}: {
-  onAdd: () => void
-  onChat: () => void
-  chatOpen: boolean
-}) {
+export function TabBar({ onAdd }: { onAdd: () => void }) {
   const route = useRoute()
   const [home, ledger, reports, more] = tabs
   return (
@@ -39,10 +31,6 @@ export function TabBar({
         <button className="tab-add" onClick={onAdd} aria-label="Add transaction">
           <Icon name="plus" size={26} />
           <span className="tab-add-label">New entry</span>
-        </button>
-        <button className={chatOpen ? 'on' : ''} onClick={onChat} aria-label="Assistant chat">
-          <Icon name="chat" />
-          <span>Chat</span>
         </button>
         {[reports, more].map((t) => (
           <TabButton key={t.to} tab={t} on={isActive(t.to, route)} />
