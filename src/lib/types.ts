@@ -1,0 +1,116 @@
+export type ID = string
+
+export interface Account {
+  id: ID
+  name: string
+  type: string
+  currency: string
+  fxRateToTHB: number
+  icon: string
+  color: string
+}
+
+export interface IncomeSource {
+  id: ID
+  name: string
+}
+
+export interface Category {
+  id: ID
+  name: string
+  icon: string
+  color: string
+}
+
+export interface Fund {
+  id: ID
+  name: string
+  icon: string
+  color: string
+  target?: number
+  deadline?: string
+  accountId?: ID
+}
+
+export interface HeldParty {
+  id: ID
+  name: string
+  isPrimary?: boolean
+}
+
+export type TxType =
+  | 'income'
+  | 'expense'
+  | 'transfer'
+  | 'fund_contribute'
+  | 'fund_withdraw'
+  | 'held_add'
+  | 'held_reduce'
+
+export interface Tx {
+  id: ID
+  type: TxType
+  amount: number
+  date: string
+  accountId: ID
+  note?: string
+  createdAt: string
+  updatedAt?: string
+  sourceId?: ID
+  recurring?: boolean
+  categoryId?: ID
+  toAccountId?: ID
+  toAmount?: number
+  fundId?: ID
+  personId?: ID
+}
+
+export interface Budgets {
+  dailyLimit?: number
+  monthlyBudget?: number
+  perCategory: Record<ID, number>
+}
+
+export type ReminderId =
+  | 'morningBrief'
+  | 'eveningBrief'
+  | 'checkinMorning'
+  | 'checkinAfternoon'
+  | 'checkinEvening'
+  | 'checkinNight'
+
+export interface ReminderSetting {
+  enabled: boolean
+  time: string
+}
+
+export interface Settings {
+  theme: 'light' | 'dark' | 'system'
+  lastUsedAccountId?: ID
+  notifPermissionAsked?: boolean
+  thresholdNotifs: boolean
+  reminders: Record<ReminderId, ReminderSetting>
+  firedKeys: Record<string, string>
+}
+
+export interface AppData {
+  schema: 1
+  accounts: Account[]
+  incomeSources: IncomeSource[]
+  categories: Category[]
+  funds: Fund[]
+  heldParties: HeldParty[]
+  transactions: Tx[]
+  budgets: Budgets
+  settings: Settings
+}
+
+export interface EntityMap {
+  accounts: Account
+  incomeSources: IncomeSource
+  categories: Category
+  funds: Fund
+  heldParties: HeldParty
+}
+
+export type EntityKind = keyof EntityMap
