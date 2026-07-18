@@ -18,7 +18,26 @@ import { Field } from '../components/ui'
 // realtime, and add field-level merge instead of whole-blob replace.
 
 const BACKUP_KEY = 'spendwise:v1:presync-backup'
+// ponytail: "remember on this device" stores the passphrase in localStorage — a
+// deliberate convenience trade-off over the memory-only default (anyone with the
+// unlocked device could then read it). Cleared on Lock, Sign out, or Forget.
+const REMEMBER_KEY = 'spendwise:v1:remember-pass'
+
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+const readRemembered = () => {
+  try {
+    return localStorage.getItem(REMEMBER_KEY)
+  } catch {
+    return null
+  }
+}
+const clearRemembered = () => {
+  try {
+    localStorage.removeItem(REMEMBER_KEY)
+  } catch {
+    /* ignore */
+  }
+}
 
 type Status = 'idle' | 'syncing' | 'synced' | 'error'
 
@@ -30,12 +49,14 @@ interface SyncValue {
   hasRemote: boolean | null
   status: Status
   error: string
+  remembered: boolean
   signIn(email: string, password: string): Promise<void>
   signUp(email: string, password: string): Promise<{ needsConfirm: boolean }>
   signInGoogle(): Promise<void>
   signOut(): Promise<void>
-  unlock(passphrase: string): Promise<void>
+  unlock(passphrase: string, remember?: boolean): Promise<void>
   lock(): void
+  forgetDevice(): void
 }
 
 const Ctx = createContext<SyncValue | null>(null)
@@ -48,9 +69,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [hasRemote, setHasRemote] = useState<boolean | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
+  const [remembered, setRemembered] = useState(() => !!readRemembered())
 
   const versionRef = useRef(0)
   const lastSyncedJson = useRef<string | null>(null)
+  const autoTried = useRef(false)
   const dataRef = useRef<AppData>(data)
   dataRef.current = data
   const vaultRef = useRef<Vault | null>(vault)
@@ -169,7 +192,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return () => removeEventListener('focus', onFocus)
   }, [session, vault])
 
-  async function unlock(passphrase: string) {
+  // "remember on this device": silently auto-unlock with the stored passphrase after a refresh
+  useEffect(() => {
+    if (!isConfigured || !session || vault || autoTried.current) return
+    const stored = readRemembered()
+    if (!stored) return
+    autoTried.current = true
+    unlock(stored, true, true).catch(() => {
+      // the stored passphrase no longer works — stop retrying and ask for it
+      clearRemembered()
+      setRemembered(false)
+    })
+  }, [session, vault])
+
+  async function unlock(passphrase: string, remember = false, silent = false) {
     const sb = await getSupabase()
     const s = session
     if (!sb || !s) return
@@ -198,7 +234,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setHasRemote(true)
         setStatus('synced')
         dispatch({ type: 'data/import', data: normalized })
-        toast({ kind: 'ok', title: 'Sync unlocked', body: 'Your data is decrypted on this device.' })
+        if (!silent) toast({ kind: 'ok', title: 'Sync unlocked', body: 'Your data is decrypted on this device.' })
       } else {
         const v = await createVault(passphrase)
         const ct = await seal(v, dataRef.current)
@@ -209,7 +245,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         setVault(v)
         setHasRemote(true)
         setStatus('synced')
-        toast({ kind: 'ok', title: 'Sync on', body: 'This device is now encrypted and backed up.' })
+        if (!silent) toast({ kind: 'ok', title: 'Sync on', body: 'This device is now encrypted and backed up.' })
+      }
+      if (remember) {
+        try {
+          localStorage.setItem(REMEMBER_KEY, passphrase)
+        } catch {
+          /* remember is best-effort */
+        }
+        setRemembered(true)
+      } else {
+        clearRemembered()
+        setRemembered(false)
       }
     } catch (e) {
       setError(msg(e) === 'BADPASS' ? 'Wrong passphrase, or the data could not be read.' : msg(e))
@@ -221,6 +268,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   function lock() {
     setVault(null)
     setStatus('idle')
+    autoTried.current = true // don't immediately re-unlock from a remembered passphrase
+    clearRemembered()
+    setRemembered(false)
+  }
+
+  function forgetDevice() {
+    clearRemembered()
+    setRemembered(false)
   }
 
   async function signIn(email: string, password: string) {
@@ -268,12 +323,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     hasRemote,
     status,
     error,
+    remembered,
     signIn,
     signUp,
     signInGoogle,
     signOut,
     unlock,
     lock,
+    forgetDevice,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -291,6 +348,7 @@ export function SyncPanel() {
   const [password, setPassword] = useState('')
   const [p1, setP1] = useState('')
   const [p2, setP2] = useState('')
+  const [remember, setRemember] = useState(true)
   const [busy, setBusy] = useState(false)
   const [info, setInfo] = useState('')
 
@@ -363,13 +421,26 @@ export function SyncPanel() {
             <input className="input" type="password" autoComplete="off" value={p2} onChange={(e) => setP2(e.target.value)} />
           </Field>
         )}
-        <button className="btn btn-primary btn-full" disabled={busy || !p1 || (first && p1 !== p2)} onClick={run(() => sync.unlock(p1))}>
+        <label className="spread">
+          <span className="small">Remember on this device</span>
+          <input type="checkbox" className="switch" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        </label>
+        <button
+          className="btn btn-primary btn-full"
+          disabled={busy || !p1 || (first && p1 !== p2)}
+          onClick={run(() => sync.unlock(p1, remember))}
+        >
           {first ? 'Turn on encrypted sync' : 'Unlock'}
         </button>
         {first && (
           <p className="muted">
             This passphrase encrypts your data end-to-end. It’s never sent to the server and can’t be recovered — if you lose it,
             the synced data can’t be read.
+          </p>
+        )}
+        {remember && (
+          <p className="muted">
+            “Remember” keeps this device unlocked without re-typing. Skip it on shared computers.
           </p>
         )}
         <button className="btn btn-ghost btn-sm" onClick={run(() => sync.signOut())}>
@@ -394,6 +465,11 @@ export function SyncPanel() {
           Sign out
         </button>
       </div>
+      {sync.remembered && (
+        <button className="btn btn-ghost btn-sm" onClick={() => sync.forgetDevice()}>
+          Remembered on this device · Forget
+        </button>
+      )}
       {sync.error && <p className="banner over">{sync.error}</p>}
     </div>
   )
