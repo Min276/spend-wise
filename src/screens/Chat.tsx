@@ -121,8 +121,13 @@ export function Chat({ onClose }: { onClose: () => void }) {
     if (!msg || !block || block.kind !== 'confirm' || msg.resolved?.[blockIdx]) return
     let followUp = 'Cancelled — nothing was saved.'
     if (action === 'added') {
-      followUp = afterSaveLine(store.data, block.tx)
-      store.addTx(block.tx)
+      let tx = block.tx
+      if (block.newParty) {
+        const personId = store.addEntity('heldParties', { name: block.newParty })
+        tx = { ...tx, personId }
+      }
+      followUp = afterSaveLine(store.data, tx)
+      store.addTx(tx)
     }
     setMsgs((m) => [
       ...m.map((x) => (x.id === msgId ? { ...x, resolved: { ...x.resolved, [blockIdx]: action } } : x)),

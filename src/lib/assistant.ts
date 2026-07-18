@@ -31,7 +31,7 @@ export type Block =
   | { kind: 'text'; text: string }
   | { kind: 'stats'; title?: string; items: { label: string; value: string; cls?: string }[] }
   | { kind: 'table'; title?: string; columns: string[]; rows: string[][]; footer?: string }
-  | { kind: 'confirm'; text: string; tx: Omit<Tx, 'id' | 'createdAt'> }
+  | { kind: 'confirm'; text: string; tx: Omit<Tx, 'id' | 'createdAt'>; newParty?: string }
 
 const text = (t: string): Block => ({ kind: 'text', text: t })
 
@@ -340,7 +340,9 @@ const HELP = `Here's what I understand:
 • add 500 food
 • spent 1200 rent yesterday from kbank
 • add 30000 as salary to kbank
+• add 5000 in truemoney (money in, no source)
 • 5000 held for Aunt in kbank
+• 2500 held for new person "Ko Denny" (creates them)
 • returned 2000 to aunt
 • save 500 to education · withdraw 200 from visa fund
 • transfer 1000 wise to kbank
@@ -435,6 +437,24 @@ function parseMutation(data: AppData, raw: string, today: string): Block[] | nul
   const person = matchIn(data.heldParties, t).best
   const heldWords = /\b(held|holding|hold|keeps?|park(ed)?)\b/.test(t)
   const returnWords = /\b(return(ed)?|(sent|send|gave|give|paid|pay)\s*back|repaid)\b/.test(t)
+
+  // "hold 2500 for a new person 'Ko Denny'": no existing person matched, but a quoted
+  // name + a create word means make the party (on confirm) and hold for them.
+  const newName = noteRes.note?.trim()
+  if (person === null && (heldWords || /\bfor\b/.test(t)) && /\b(new|create)\b/.test(t) && newName) {
+    const acc = pickAccount(data, t) ?? defaultAccount(data)
+    const sym = symbolOf(acc.currency)
+    const dateWord = dateRes.date === todayStr() ? 'today' : fmtDate(dateRes.date)
+    return [
+      {
+        kind: 'confirm',
+        text: `Create “${newName}” and hold ${sym}${amount.toLocaleString('en-US')} for them · ${acc.name} · ${dateWord}`,
+        tx: { type: 'held_add', amount, date: dateRes.date, accountId: acc.id, personId: '' },
+        newParty: newName,
+      },
+    ]
+  }
+
   if (person || heldWords) {
     const p = person ?? data.heldParties.find((x) => x.isPrimary) ?? data.heldParties[0]
     if (!p) return [text('Add a person first (Held for Others → + Person), then tell me again.')]
@@ -469,9 +489,17 @@ function parseMutation(data: AppData, raw: string, today: string): Block[] | nul
     return [confirmBlock(data, { type: 'income', ...base, accountId: acc.id, sourceId: source.id })]
   }
 
-  // expense (default)
   const cat = matchIn(data.categories, t).best
-  const acc = pickAccount(data, t) ?? defaultAccount(data)
+  const namedAcc = pickAccount(data, t)
+
+  // "add 500 in truemoney" — an amount landing in a named account, with no category
+  // and no spend word, reads as money coming IN (income), not an expense.
+  if (!cat && namedAcc && !/\b(spent|spend|paid|pay|bought|buy)\b/.test(t)) {
+    return [confirmBlock(data, { type: 'income', ...base, accountId: namedAcc.id }, ' · no source tagged')]
+  }
+
+  // expense (default)
+  const acc = namedAcc ?? defaultAccount(data)
   const misc = data.categories.find((c) => c.id === 'cat-misc') ?? data.categories[data.categories.length - 1]
   if (!cat && !misc) return [text('Add a category first, then tell me again.')]
   return [
@@ -488,9 +516,8 @@ function parseMutation(data: AppData, raw: string, today: string): Block[] | nul
 export function assist(data: AppData, input: string): Block[] {
   const today = todayStr()
   const raw = norm(input)
+  if (input.trim() === '?' || /^(help|commands?|what can you do|how do i .*)$/.test(raw)) return [text(HELP)]
   if (!raw) return [text('Type a command or question — or say "help".')]
-
-  if (/^(help|commands?|what can you do|how do i .*)$/.test(raw) || raw === '?') return [text(HELP)]
 
   // queries first when clearly interrogative / no amount
   const isQuery = /\b(how much|how many|show|list|what|who|balance|net worth|report|records|history|biggest|largest|top|left|remaining|status)\b/.test(raw)
@@ -501,14 +528,20 @@ export function assist(data: AppData, input: string): Block[] {
   }
 
   if (/\b(balance|net worth|have|worth)\b/.test(raw) && !/\bfund|held|hold|owe\b/.test(raw)) return balanceBlocks(data)
-  if (/\b(hold|held|holding|owe|owed)\b/.test(raw)) {
-    const p = matchIn(data.heldParties, raw).best
-    if (p) {
-      const total = heldForPartyTHB(data, p.id)
-      const txs = filterTxs(data.transactions, { personId: p.id })
+  const heldPerson = matchIn(data.heldParties, raw).best
+  // "how much for aunt?" names a person without a hold/owe keyword — still a held query,
+  // unless it clearly belongs to another intent (spending, reports, transfers…).
+  const asksHeldPerson =
+    !!heldPerson &&
+    /\b(how much|how many|for|owe)\b/.test(raw) &&
+    !/(spen|budget|report|saving|income|transfer|balance)/.test(raw)
+  if (/\b(hold|held|holding|owe|owed)\b/.test(raw) || asksHeldPerson) {
+    if (heldPerson) {
+      const total = heldForPartyTHB(data, heldPerson.id)
+      const txs = filterTxs(data.transactions, { personId: heldPerson.id })
       return [
-        text(`You are holding ${fmtTHB(total)} for ${p.name}.`),
-        ...(txs.length ? [txTable(data, txs, `${p.name} — history`, 8)] : []),
+        text(`You are holding ${fmtTHB(total)} for ${heldPerson.name}.`),
+        ...(txs.length ? [txTable(data, txs, `${heldPerson.name} — history`, 8)] : []),
       ]
     }
     return heldBlocks(data)
