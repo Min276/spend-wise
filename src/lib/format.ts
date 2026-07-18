@@ -29,6 +29,13 @@ export function fmtSigned(n: number, currency = 'THB'): string {
   return (n > 0 ? '+' : '') + fmtMoney(n, currency)
 }
 
+export function fmtCompact(n: number): string {
+  const a = Math.abs(n)
+  if (a >= 1e6) return `${(n / 1e6).toFixed(a < 1e7 ? 1 : 0)}M`
+  if (a >= 1e3) return `${(n / 1e3).toFixed(a < 1e4 ? 1 : 0)}k`
+  return String(Math.round(n))
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export function fmtDate(date: string): string {

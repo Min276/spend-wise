@@ -296,6 +296,41 @@ export function balanceSeriesTHB(
   })
 }
 
+// Generic cumulative ฿ series: signOf gives each tx a signed multiplier.
+function cumSeriesTHB(
+  data: AppData,
+  signOf: (tx: Tx) => number,
+  gran: Gran,
+  from: string,
+  to: string,
+): SeriesPoint[] {
+  const accounts = byId(data.accounts)
+  const fromKey = keyOf(from, gran)
+  const toKey = keyOf(to, gran)
+  let base = 0
+  const perKey = new Map<string, number>()
+  for (const tx of data.transactions) {
+    const sign = signOf(tx)
+    if (!sign) continue
+    const k = keyOf(tx.date, gran)
+    if (k > toKey) continue
+    const d = sign * toTHB(tx.amount, accounts.get(tx.accountId))
+    if (k < fromKey) base += d
+    else perKey.set(k, (perKey.get(k) ?? 0) + d)
+  }
+  let running = base
+  return periodKeys(fromKey, toKey, gran).map((key) => {
+    running += perKey.get(key) ?? 0
+    return { key, value: running }
+  })
+}
+
+export const fundGrowthTHB = (data: AppData, fundId: ID | 'all', gran: Gran, from: string, to: string) =>
+  cumSeriesTHB(data, (tx) => (fundId === 'all' || tx.fundId === fundId ? fundSign(tx.type) : 0), gran, from, to)
+
+export const heldGrowthTHB = (data: AppData, personId: ID, gran: Gran, from: string, to: string) =>
+  cumSeriesTHB(data, (tx) => (tx.personId === personId ? heldSign(tx.type) : 0), gran, from, to)
+
 export function biggestExpenses(data: AppData, f: TxFilter, n: number): { tx: Tx; thb: number }[] {
   const accounts = byId(data.accounts)
   return filterTxs(data.transactions, { ...f, types: ['expense'] })

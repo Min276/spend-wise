@@ -15,6 +15,7 @@ import { ManageAccounts, ManageCategories, ManagePeople, ManageSources } from '.
 import { Funds } from './screens/Funds'
 import { Held, HeldHistory } from './screens/Held'
 import { Budgets } from './screens/Budgets'
+import { Reports } from './screens/Reports'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -35,7 +36,7 @@ function Screens() {
     case '/ledger':
       return <Ledger />
     case '/reports':
-      return <Placeholder title="Reports" />
+      return <Reports />
     case '/more':
       return <More />
     case '/funds':

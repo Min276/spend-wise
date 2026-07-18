@@ -7,6 +7,8 @@ import {
   expenseTHB,
   filterTxs,
   fundBalanceTHB,
+  fundGrowthTHB,
+  heldGrowthTHB,
   heldForPartyTHB,
   heldInAccount,
   heldTotalTHB,
@@ -104,6 +106,12 @@ const kSeries = balanceSeriesTHB(data, 'k', 'day', yday, today)
 assert.equal(kSeries[kSeries.length - 1]!.value, 3150)
 const nwSeries = balanceSeriesTHB(data, 'all', 'day', yday, today)
 assert.equal(nwSeries[nwSeries.length - 1]!.value, netWorthTHB(data))
+
+// cumulative growth series agree with point-in-time balances
+const eduGrowth = fundGrowthTHB(data, 'fund-education', 'day', yday, today)
+assert.equal(eduGrowth[eduGrowth.length - 1]!.value, fundBalanceTHB(data, 'fund-education'))
+const auntGrowth = heldGrowthTHB(data, 'aunt', 'day', yday, today)
+assert.equal(auntGrowth[auntGrowth.length - 1]!.value, heldForPartyTHB(data, 'aunt'))
 
 // budget alerts: 80% warn, then over; deduped via firedKeys
 const warned: AppData = { ...data, budgets: { dailyLimit: 240, perCategory: { 'cat-food': 240 } } }

@@ -572,6 +572,22 @@ button.lrow:active { background: var(--sunken); }
   letter-spacing: 0.05em;
 }
 
+/* ---------- chart legend ---------- */
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  padding: 3px 0;
+}
+
+.legend-row .nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- reconciliation ---------- */
 .recon + .recon {
   border-top: 1px solid var(--border);
