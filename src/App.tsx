@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { StoreProvider, useStore } from './lib/store'
+import { SyncProvider } from './lib/sync'
 import { SheetCtx } from './lib/sheet'
 import { useRoute } from './lib/router'
 import { newAlerts } from './lib/alerts'
@@ -16,9 +17,14 @@ import { ManageAccounts, ManageCategories, ManagePeople, ManageSources } from '.
 import { Funds } from './screens/Funds'
 import { Held, HeldHistory } from './screens/Held'
 import { Budgets } from './screens/Budgets'
-import { Reports } from './screens/Reports'
 import { NotifSettings } from './screens/NotifSettings'
-import { Chat } from './screens/Chat'
+import { Templates } from './screens/Templates'
+import { todayStr } from './lib/money'
+import type { Tx } from './lib/types'
+
+// Code-split the heaviest on-demand screens so they don't weigh down first paint.
+const Reports = lazy(() => import('./screens/Reports').then((m) => ({ default: m.Reports })))
+const Chat = lazy(() => import('./screens/Chat').then((m) => ({ default: m.Chat })))
 
 function Screens() {
   const route = useRoute()
@@ -49,6 +55,8 @@ function Screens() {
       return <ManagePeople />
     case '/settings/notifications':
       return <NotifSettings />
+    case '/settings/templates':
+      return <Templates />
     default:
       if (route.startsWith('/held/'))
         return <HeldHistory personId={decodeURIComponent(route.slice('/held/'.length))} />
@@ -109,6 +117,31 @@ function ReminderScheduler() {
   return null
 }
 
+// Auto-posts recurring templates due this month — idempotent via each template's lastPosted.
+function RecurringPoster() {
+  const { data, addTx, updateTemplate } = useStore()
+  const ref = useRef(data)
+  ref.current = data
+  const didRun = useRef(false)
+
+  useEffect(() => {
+    if (didRun.current) return
+    didRun.current = true
+    const today = todayStr()
+    const day = Number(today.slice(8, 10))
+    const month = today.slice(0, 7)
+    for (const t of ref.current.templates) {
+      if (!t.repeatDay || t.lastPosted === month || day < t.repeatDay) continue
+      const p = t.preset
+      if (!p.type || !p.amount || !p.accountId) continue
+      addTx({ ...p, date: today } as Omit<Tx, 'id' | 'createdAt'>)
+      updateTemplate({ ...t, lastPosted: month })
+    }
+  }, [addTx, updateTemplate])
+
+  return null
+}
+
 function Shell() {
   const [sheet, setSheet] = useState<SheetOpts | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
@@ -117,8 +150,11 @@ function Shell() {
     <SheetCtx.Provider value={open}>
       <AlertWatcher />
       <ReminderScheduler />
+      <RecurringPoster />
       <div className="app">
-        <Screens />
+        <Suspense fallback={<div className="screen" />}>
+          <Screens />
+        </Suspense>
         <TabBar onAdd={() => open({})} />
       </div>
       {!chatOpen && (
@@ -128,7 +164,9 @@ function Shell() {
       )}
       {chatOpen && (
         <div className="chat-pop">
-          <Chat onClose={() => setChatOpen(false)} />
+          <Suspense fallback={null}>
+            <Chat onClose={() => setChatOpen(false)} />
+          </Suspense>
         </div>
       )}
       {sheet && <AddSheet opts={sheet} onClose={() => setSheet(null)} />}
@@ -140,7 +178,9 @@ export default function App() {
   return (
     <StoreProvider>
       <ToastProvider>
-        <Shell />
+        <SyncProvider>
+          <Shell />
+        </SyncProvider>
       </ToastProvider>
     </StoreProvider>
   )

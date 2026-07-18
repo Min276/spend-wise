@@ -4,7 +4,33 @@ import type { AppData } from '../lib/types'
 import { todayStr } from '../lib/money'
 import { navigate } from '../lib/router'
 import { BackButton, ConfirmDialog, Seg } from '../components/ui'
+import { SyncPanel, useSync } from '../lib/sync'
 import { Icon, type IconName } from '../components/Icons'
+
+const ACCENTS = [
+  { key: 'teal', color: '#0D9488' },
+  { key: 'indigo', color: '#6366F1' },
+  { key: 'violet', color: '#8B5CF6' },
+  { key: 'emerald', color: '#10B981' },
+  { key: 'amber', color: '#F59E0B' },
+  { key: 'rose', color: '#F43F5E' },
+]
+const PERIODS: { value: 'day' | 'month' | 'year'; label: string }[] = [
+  { value: 'day', label: 'Today' },
+  { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' },
+]
+const DENSITY: { value: 'comfortable' | 'compact'; label: string }[] = [
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'compact', label: 'Compact' },
+]
+const HERO_STATS = [
+  { key: 'total', label: 'Total · incl. held' },
+  { key: 'held', label: 'Held for others' },
+  { key: 'funds', label: 'In savings funds' },
+  { key: 'budgetDay', label: 'Budget left today' },
+  { key: 'budgetMonth', label: 'Budget left this month' },
+]
 
 function NavRow({ icon, label, sub, to }: { icon: IconName; label: string; sub?: string; to: string }) {
   return (
@@ -23,6 +49,7 @@ function NavRow({ icon, label, sub, to }: { icon: IconName; label: string; sub?:
 
 export function Settings() {
   const { data, dispatch, patchSettings } = useStore()
+  const sync = useSync()
   const fileRef = useRef<HTMLInputElement>(null)
   const [pendingImport, setPendingImport] = useState<Partial<AppData> | null>(null)
   const [importError, setImportError] = useState('')
@@ -76,6 +103,81 @@ export function Settings() {
       </div>
 
       <div className="col-sm">
+        <span className="label">Personalize</span>
+        <div className="card col-sm">
+          <div className="col-sm" style={{ gap: 6 }}>
+            <span className="xs muted">Accent color</span>
+            <div className="rowx" style={{ gap: 12, flexWrap: 'wrap' }}>
+              {ACCENTS.map((a) => {
+                const on = (data.settings.accent ?? 'teal') === a.key
+                return (
+                  <button
+                    key={a.key}
+                    className="accent-swatch"
+                    aria-label={a.key}
+                    aria-pressed={on}
+                    onClick={() => patchSettings({ accent: a.key })}
+                    style={{ background: a.color, boxShadow: on ? `0 0 0 3px var(--surface), 0 0 0 5px ${a.color}` : undefined }}
+                  />
+                )
+              })}
+            </div>
+          </div>
+          <label className="spread">
+            <span className="small">Show foreign-currency conversions</span>
+            <input
+              type="checkbox"
+              className="switch"
+              checked={data.settings.showFx !== false}
+              onChange={(e) => patchSettings({ showFx: e.target.checked })}
+            />
+          </label>
+          <div className="col-sm" style={{ gap: 6 }}>
+            <span className="xs muted">Default overview period</span>
+            <Seg
+              options={PERIODS}
+              value={data.settings.defaultPeriod ?? 'day'}
+              onChange={(defaultPeriod) => patchSettings({ defaultPeriod })}
+            />
+          </div>
+          <div className="col-sm" style={{ gap: 6 }}>
+            <span className="xs muted">Density</span>
+            <Seg
+              options={DENSITY}
+              value={data.settings.density ?? 'comfortable'}
+              onChange={(density) => patchSettings({ density })}
+            />
+          </div>
+        </div>
+
+        <span className="xs muted" style={{ paddingInline: 4, marginTop: 4 }}>
+          Dashboard balances to show
+        </span>
+        <div className="card col-sm">
+          {HERO_STATS.map((h) => (
+            <label className="spread" key={h.key}>
+              <span className="small">{h.label}</span>
+              <input
+                type="checkbox"
+                className="switch"
+                checked={(data.settings.heroStats ?? {})[h.key] !== false}
+                onChange={(e) =>
+                  patchSettings({ heroStats: { ...data.settings.heroStats, [h.key]: e.target.checked } })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="col-sm">
+        <span className="label">Cloud sync</span>
+        <div className="card col-sm">
+          <SyncPanel />
+        </div>
+      </div>
+
+      <div className="col-sm">
         <span className="label">Manage</span>
         <div className="list">
           <NavRow icon="wallet" label="Accounts" sub={`${data.accounts.length} accounts`} to="/settings/accounts" />
@@ -98,6 +200,12 @@ export function Settings() {
             to="/settings/people"
           />
           <NavRow icon="bell" label="Notifications & reminders" to="/settings/notifications" />
+          <NavRow
+            icon="repeat"
+            label="Templates & recurring"
+            sub={`${data.templates.length} saved`}
+            to="/settings/templates"
+          />
         </div>
       </div>
 
@@ -148,7 +256,7 @@ export function Settings() {
       </div>
 
       <p className="muted" style={{ textAlign: 'center' }}>
-        Spendwise · all data stays on this device
+        {sync.unlocked ? 'Spendwise · end-to-end encrypted sync is on' : 'Spendwise · all data stays on this device'}
       </p>
 
       {pendingImport && (
