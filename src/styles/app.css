@@ -938,7 +938,7 @@ input[type='checkbox'].switch:checked::after {
   }
 
   .tabbar-brand span {
-    color: var(--income);
+    color: color-mix(in srgb, var(--primary) 62%, var(--text));
   }
 
   .tabbar-inner {
