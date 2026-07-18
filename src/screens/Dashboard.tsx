@@ -48,7 +48,8 @@ function Stat({ label, value, cls, sign }: { label: string; value: number; cls: 
 }
 
 export function Dashboard() {
-  const { data } = useStore()
+  const { data, patchSettings } = useStore()
+  const hidden = !!data.settings.hideAmounts
   const openSheet = useAddSheet()
   const [period, setPeriod] = useState<'day' | 'month' | 'year'>('day')
 
@@ -81,7 +82,18 @@ export function Dashboard() {
   return (
     <div className="screen screen-dash">
       <div className="hero-card col-sm">
-        <span className="hero-label">My money · held excluded</span>
+        <div className="spread">
+          <span className="hero-label">My money · held excluded</span>
+          <button
+            className="btn-icon"
+            style={{ color: '#fff', minHeight: 34, minWidth: 34, opacity: 0.9 }}
+            onClick={() => patchSettings({ hideAmounts: !hidden })}
+            aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
+            aria-pressed={hidden}
+          >
+            <Icon name={hidden ? 'eyeOff' : 'eye'} size={20} />
+          </button>
+        </div>
         <span className="hero-balance">{fmtTHB(legit)}</span>
         <div className="chip-row" style={{ marginInline: 0, paddingInline: 0 }}>
           {data.accounts.map((a) => {

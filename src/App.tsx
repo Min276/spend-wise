@@ -26,8 +26,6 @@ function Screens() {
       return <Dashboard />
     case '/ledger':
       return <Ledger />
-    case '/chat':
-      return <Chat />
     case '/reports':
       return <Reports />
     case '/more':
@@ -112,6 +110,7 @@ function ReminderScheduler() {
 
 function Shell() {
   const [sheet, setSheet] = useState<SheetOpts | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
   const open = useCallback((opts: SheetOpts) => setSheet(opts), [])
   return (
     <SheetCtx.Provider value={open}>
@@ -119,8 +118,13 @@ function Shell() {
       <ReminderScheduler />
       <div className="app">
         <Screens />
-        <TabBar onAdd={() => open({})} />
+        <TabBar onAdd={() => open({})} onChat={() => setChatOpen((o) => !o)} chatOpen={chatOpen} />
       </div>
+      {chatOpen && (
+        <div className="chat-pop">
+          <Chat onClose={() => setChatOpen(false)} />
+        </div>
+      )}
       {sheet && <AddSheet opts={sheet} onClose={() => setSheet(null)} />}
     </SheetCtx.Provider>
   )

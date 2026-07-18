@@ -182,6 +182,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     navigator.storage?.persist?.().catch(() => {})
   }, [])
 
+  const hideAmounts = !!data.settings.hideAmounts
+  useEffect(() => {
+    document.documentElement.dataset.privacy = hideAmounts ? 'on' : 'off'
+  }, [hideAmounts])
+
   const theme = data.settings.theme
   useEffect(() => {
     const apply = () => {

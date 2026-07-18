@@ -136,19 +136,19 @@ export function Reports() {
 
       <div className="grid3">
         <select className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label="Filter account">
-          <option value="">All accounts</option>
+          <option value="">Accounts</option>
           {data.accounts.map((a) => (
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
         </select>
         <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Filter category">
-          <option value="">All categories</option>
+          <option value="">Categories</option>
           {data.categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
         <select className="input" value={personId} onChange={(e) => setPersonId(e.target.value)} aria-label="Filter person">
-          <option value="">People…</option>
+          <option value="">People</option>
           {data.heldParties.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}

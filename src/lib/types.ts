@@ -87,6 +87,7 @@ export interface ReminderSetting {
 export interface Settings {
   theme: 'light' | 'dark' | 'system'
   seedV?: number
+  hideAmounts?: boolean
   lastUsedAccountId?: ID
   notifPermissionAsked?: boolean
   thresholdNotifs: boolean

@@ -21,9 +21,17 @@ const GREETING: Msg = {
   ],
 }
 
-const SUGGESTIONS = ['add 100 food', 'add 30000 as salary', '5000 held for Aunt', 'balance', 'report this month', 'help']
+const QUICK: { label: string; text: string; insert?: boolean }[] = [
+  { label: '+ add…', text: 'add ', insert: true },
+  { label: 'balance', text: 'balance' },
+  { label: 'budget left', text: 'budget left' },
+  { label: 'report', text: 'report this month' },
+  { label: 'held', text: 'who do i owe' },
+  { label: 'records', text: 'show records this month' },
+  { label: 'help', text: 'help' },
+]
 
-// survives tab switches; resets on reload
+// survives open/close and tab switches; resets on reload
 let session: Msg[] | null = null
 let seq = 1
 
@@ -72,7 +80,7 @@ function TableBlock({ b }: { b: Extract<Block, { kind: 'table' }> }) {
   )
 }
 
-export function Chat() {
+export function Chat({ onClose }: { onClose: () => void }) {
   const store = useStore()
   const [msgs, setMsgs] = useState<Msg[]>(() => session ?? [GREETING])
   const [input, setInput] = useState('')
@@ -100,6 +108,13 @@ export function Chat() {
     inputRef.current?.focus()
   }
 
+  const quick = (q: (typeof QUICK)[number]) => {
+    if (q.insert) {
+      setInput(q.text)
+      inputRef.current?.focus()
+    } else send(q.text)
+  }
+
   const resolveConfirm = (msgId: number, blockIdx: number, action: 'added' | 'cancelled') => {
     const msg = msgs.find((m) => m.id === msgId)
     const block = msg?.blocks[blockIdx]
@@ -115,13 +130,16 @@ export function Chat() {
     ])
   }
 
-  const showSuggestions = msgs.length <= 1
-
   return (
-    <div className="screen screen-chat">
-      <div className="screen-head">
-        <h1>Assistant</h1>
-        <span className="xs muted">offline · private</span>
+    <div className="chat-root" role="dialog" aria-modal="true" aria-label="Assistant chat">
+      <div className="spread" style={{ flex: 'none' }}>
+        <span className="rowx" style={{ gap: 8, alignItems: 'baseline' }}>
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>Assistant</h2>
+          <span className="xs muted">offline · private</span>
+        </span>
+        <button className="btn-icon" onClick={onClose} aria-label="Close chat">
+          <Icon name="x" />
+        </button>
       </div>
 
       <div className="chat-scroll">
@@ -157,17 +175,15 @@ export function Chat() {
             })}
           </div>
         ))}
-
-        {showSuggestions && (
-          <div className="wrap" style={{ justifyContent: 'center', paddingTop: 8 }}>
-            {SUGGESTIONS.map((s) => (
-              <button key={s} className="chip" onClick={() => send(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
         <div ref={endRef} />
+      </div>
+
+      <div className="chip-row chat-quick">
+        {QUICK.map((q) => (
+          <button key={q.label} className="chip" onClick={() => quick(q)}>
+            {q.label}
+          </button>
+        ))}
       </div>
 
       <div className="chat-inputbar">
@@ -176,6 +192,7 @@ export function Chat() {
           className="input"
           placeholder="add 500 food · balance · help"
           value={input}
+          autoFocus
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send(input)}
           aria-label="Message the assistant"
