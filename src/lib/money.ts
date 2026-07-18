@@ -100,6 +100,14 @@ export function heldInAccount(txs: Tx[], accountId: ID): number {
   return sum
 }
 
+// One person's money sitting inside one account, in that account's currency.
+export function heldPartyInAccount(txs: Tx[], personId: ID, accountId: ID): number {
+  let sum = 0
+  for (const tx of txs)
+    if (tx.personId === personId && tx.accountId === accountId) sum += heldSign(tx.type) * tx.amount
+  return sum
+}
+
 // Total owed to one person, in ฿ (converted per holding account).
 export function heldForPartyTHB(data: AppData, personId: ID): number {
   const accounts = byId(data.accounts)

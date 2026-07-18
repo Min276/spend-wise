@@ -311,7 +311,7 @@ export function ManageCategories() {
 
 /* ---------- simple named lists (sources & people) ---------- */
 
-function NameForm({
+export function NameForm({
   title,
   initial,
   onSave,

@@ -572,6 +572,28 @@ button.lrow:active { background: var(--sunken); }
   letter-spacing: 0.05em;
 }
 
+/* ---------- reconciliation ---------- */
+.recon + .recon {
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+.recon-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  padding: 3px 0;
+}
+
+.recon-row.total {
+  border-top: 1px solid var(--border);
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
+  font-weight: 600;
+}
+
 /* ---------- swatches & radio ---------- */
 .swatches {
   display: flex;

@@ -9,6 +9,8 @@ import { Ledger } from './screens/Ledger'
 import { More } from './screens/More'
 import { Settings } from './screens/Settings'
 import { ManageAccounts, ManageCategories, ManagePeople, ManageSources } from './screens/Manage'
+import { Funds } from './screens/Funds'
+import { Held, HeldHistory } from './screens/Held'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -33,9 +35,9 @@ function Screens() {
     case '/more':
       return <More />
     case '/funds':
-      return <Placeholder title="Savings Funds" />
+      return <Funds />
     case '/held':
-      return <Placeholder title="Held for Others" />
+      return <Held />
     case '/budgets':
       return <Placeholder title="Budgets & Limits" />
     case '/settings':
@@ -51,7 +53,8 @@ function Screens() {
     case '/settings/notifications':
       return <Placeholder title="Notifications" />
     default:
-      if (route.startsWith('/held/')) return <Placeholder title="Held history" />
+      if (route.startsWith('/held/'))
+        return <HeldHistory personId={decodeURIComponent(route.slice('/held/'.length))} />
       return <Dashboard />
   }
 }
