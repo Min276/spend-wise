@@ -369,6 +369,7 @@ button.lrow:active { background: var(--sunken); }
 .lrow-main { flex: 1; min-width: 0; }
 
 .lrow-main .t {
+  display: block;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -376,6 +377,7 @@ button.lrow:active { background: var(--sunken); }
 }
 
 .lrow-main .s {
+  display: block;
   font-size: var(--fs-xs);
   color: var(--text-muted);
   overflow: hidden;
@@ -384,8 +386,8 @@ button.lrow:active { background: var(--sunken); }
 }
 
 .lrow-right { text-align: right; flex: none; }
-.lrow-right .t { font-weight: 600; }
-.lrow-right .s { font-size: var(--fs-xs); color: var(--text-muted); }
+.lrow-right .t { display: block; font-weight: 600; }
+.lrow-right .s { display: block; font-size: var(--fs-xs); color: var(--text-muted); }
 
 /* ---------- progress ---------- */
 .progress {

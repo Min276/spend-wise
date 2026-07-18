@@ -4,7 +4,8 @@ declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: { url: string; revision: string | null }[]
 }
 
-const entries = self.__WB_MANIFEST
+// vite-plugin-pwa can list a URL twice (glob + manifest icons); addAll rejects duplicates
+const entries = [...new Map(self.__WB_MANIFEST.map((e) => [e.url, e])).values()]
 
 // Cache name derives from the build manifest, so every deploy gets a fresh
 // cache and activate() drops the old one.
@@ -30,19 +31,23 @@ self.addEventListener('activate', (e) => {
   )
 })
 
+// ignoreVary: vite's server sends `Vary` on assets, and module-script requests
+// carry different headers at install vs load time — strict matching would miss.
+const OPTS = { ignoreVary: true, ignoreSearch: false } as const
+
 self.addEventListener('fetch', (e) => {
   const req = e.request
   if (req.method !== 'GET') return
   if (req.mode === 'navigate') {
     e.respondWith(
-      caches.open(CACHE).then((c) => c.match('index.html').then((hit) => hit ?? fetch(req))),
+      caches.open(CACHE).then((c) => c.match('index.html', OPTS).then((hit) => hit ?? fetch(req))),
     )
     return
   }
   const url = new URL(req.url)
   if (url.origin !== location.origin) return
   e.respondWith(
-    caches.open(CACHE).then((c) => c.match(req).then((hit) => hit ?? fetch(req))),
+    caches.open(CACHE).then((c) => c.match(req.url, OPTS).then((hit) => hit ?? fetch(req))),
   )
 })
 
