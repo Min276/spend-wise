@@ -71,6 +71,17 @@ export interface Budgets {
   perCategory: Record<ID, number>
 }
 
+// A saved quick-add entry. `preset` prefills the add sheet (or is auto-posted).
+// When `repeatDay` is set it posts once a month on that day; `lastPosted` (YYYY-MM)
+// dedupes so it never double-posts within a month.
+export interface Template {
+  id: ID
+  label: string
+  preset: Partial<Tx>
+  repeatDay?: number
+  lastPosted?: string
+}
+
 export type ReminderId =
   | 'morningBrief'
   | 'eveningBrief'
@@ -88,6 +99,11 @@ export interface Settings {
   theme: 'light' | 'dark' | 'system'
   seedV?: number
   hideAmounts?: boolean
+  accent?: string
+  defaultPeriod?: 'day' | 'month' | 'year'
+  showFx?: boolean
+  heroStats?: Record<string, boolean>
+  density?: 'comfortable' | 'compact'
   lastUsedAccountId?: ID
   notifPermissionAsked?: boolean
   thresholdNotifs: boolean
@@ -103,6 +119,7 @@ export interface AppData {
   funds: Fund[]
   heldParties: HeldParty[]
   transactions: Tx[]
+  templates: Template[]
   budgets: Budgets
   settings: Settings
 }

@@ -50,8 +50,11 @@ function Stat({ label, value, cls, sign }: { label: string; value: number; cls: 
 export function Dashboard() {
   const { data, patchSettings } = useStore()
   const hidden = !!data.settings.hideAmounts
+  const showFx = data.settings.showFx !== false
+  const heroStats = data.settings.heroStats ?? {}
+  const showStat = (k: string) => heroStats[k] !== false
   const openSheet = useAddSheet()
-  const [period, setPeriod] = useState<'day' | 'month' | 'year'>('day')
+  const [period, setPeriod] = useState<'day' | 'month' | 'year'>(data.settings.defaultPeriod ?? 'day')
 
   const today = todayStr()
   const [from, to] =
@@ -103,24 +106,38 @@ export function Dashboard() {
                 <span aria-hidden>{a.icon}</span> {a.name}:{' '}
                 <span className="money">
                   {fmtMoney(bal, a.currency)}
-                  {a.currency !== 'THB' && ` (≈${fmtTHB(toTHB(bal, a))})`}
+                  {a.currency !== 'THB' && showFx && ` (≈${fmtTHB(toTHB(bal, a))})`}
                 </span>
               </span>
             )
           })}
         </div>
         <div className="hero-stats">
-          <HeroStat label="Total · incl. held" value={fmtTHB(totalInclHeld)} />
-          <HeroStat label="Held for others" value={fmtTHB(held)} />
-          <HeroStat label="In savings funds" value={fmtTHB(inFunds)} />
-          {leftToday !== undefined && (
+          {showStat('total') && <HeroStat label="Total · incl. held" value={fmtTHB(totalInclHeld)} />}
+          {showStat('held') && <HeroStat label="Held for others" value={fmtTHB(held)} />}
+          {showStat('funds') && <HeroStat label="In savings funds" value={fmtTHB(inFunds)} />}
+          {showStat('budgetDay') && leftToday !== undefined && (
             <HeroStat label="Budget left today" value={fmtLeft(leftToday)} warn={leftToday < 0} />
           )}
-          {leftMonth !== undefined && (
+          {showStat('budgetMonth') && leftMonth !== undefined && (
             <HeroStat label="Budget left this month" value={fmtLeft(leftMonth)} warn={leftMonth < 0} />
           )}
         </div>
       </div>
+
+      {data.templates.length > 0 && (
+        <div className="col-sm" style={{ gap: 6 }}>
+          <span className="label">Quick add</span>
+          <div className="chip-row" style={{ marginInline: 0, paddingInline: 0 }}>
+            {data.templates.map((t) => (
+              <button key={t.id} className="chip" onClick={() => openSheet({ preset: t.preset })}>
+                {t.repeatDay ? '🔁 ' : ''}
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {overD && (
         <button className="banner over" onClick={() => navigate('/budgets')}>

@@ -114,6 +114,33 @@
   color-scheme: dark;
 }
 
+/* accent themes — override the primary color, hero gradient, and focus ring */
+:root[data-accent='indigo'] { --primary: #6366F1; --grad-hero: linear-gradient(135deg, #4F46E5, #6366F1); --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.4); }
+:root[data-accent='violet'] { --primary: #8B5CF6; --grad-hero: linear-gradient(135deg, #7C3AED, #8B5CF6); --focus-ring: 0 0 0 3px rgba(139, 92, 246, 0.4); }
+:root[data-accent='emerald'] { --primary: #10B981; --grad-hero: linear-gradient(135deg, #059669, #10B981); --focus-ring: 0 0 0 3px rgba(16, 185, 129, 0.4); }
+:root[data-accent='amber'] { --primary: #F59E0B; --on-primary: #1A1206; --grad-hero: linear-gradient(135deg, #D97706, #F59E0B); --focus-ring: 0 0 0 3px rgba(245, 158, 11, 0.4); }
+:root[data-accent='rose'] { --primary: #F43F5E; --grad-hero: linear-gradient(135deg, #E11D48, #F43F5E); --focus-ring: 0 0 0 3px rgba(244, 63, 94, 0.4); }
+
+.accent-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-full);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.accent-swatch:active { transform: scale(0.88); }
+
+/* compact density — tightens the spacing scale used throughout */
+:root[data-density='compact'] {
+  --sp-2: 6px;
+  --sp-3: 9px;
+  --sp-4: 12px;
+  --sp-5: 15px;
+  --sp-6: 18px;
+}
+
 * {
   box-sizing: border-box;
 }

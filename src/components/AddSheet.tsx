@@ -86,7 +86,7 @@ function ChipPick({
 }
 
 export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => void }) {
-  const { data, addTx, updateTx, deleteTx, addEntity } = useStore()
+  const { data, addTx, updateTx, deleteTx, addEntity, addTemplate } = useStore()
   const tx = opts.tx
   const init = tx ?? opts.preset
 
@@ -94,7 +94,7 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
   const [dir, setDir] = useState<'in' | 'out'>(
     init?.type === 'fund_withdraw' || init?.type === 'held_reduce' ? 'out' : 'in',
   )
-  const [amountStr, setAmountStr] = useState(tx ? String(tx.amount) : '')
+  const [amountStr, setAmountStr] = useState(init?.amount ? String(init.amount) : '')
   const [toAmountStr, setToAmountStr] = useState(tx?.toAmount ? String(tx.toAmount) : '')
   const [accountId, setAccountId] = useState<ID>(
     init?.accountId ?? data.settings.lastUsedAccountId ?? data.accounts[0]?.id ?? '',
@@ -108,6 +108,8 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
   const [note, setNote] = useState(init?.note ?? '')
   const [recurring, setRecurring] = useState(!!init?.recurring)
   const [confirmDel, setConfirmDel] = useState(false)
+  const [savingTpl, setSavingTpl] = useState(false)
+  const [tplLabel, setTplLabel] = useState('')
 
   const acc = data.accounts.find((a) => a.id === accountId)
   const toAcc = data.accounts.find((a) => a.id === toAccountId)
@@ -136,24 +138,34 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
     (kind !== 'fund' || !!fundId) &&
     (kind !== 'held' || !!personId)
 
+  const buildFields = () => ({
+    type: txType,
+    amount,
+    date,
+    accountId,
+    note: note.trim() || undefined,
+    categoryId: kind === 'expense' ? categoryId : undefined,
+    sourceId: kind === 'income' ? sourceId : undefined,
+    recurring: kind === 'income' && recurring ? true : undefined,
+    toAccountId: kind === 'transfer' ? toAccountId : undefined,
+    toAmount: cross ? parseAmount(toAmountStr) || suggestedTo : undefined,
+    fundId: kind === 'fund' ? fundId : undefined,
+    personId: kind === 'held' ? personId : undefined,
+  })
+
   const save = () => {
-    const fields = {
-      type: txType,
-      amount,
-      date,
-      accountId,
-      note: note.trim() || undefined,
-      categoryId: kind === 'expense' ? categoryId : undefined,
-      sourceId: kind === 'income' ? sourceId : undefined,
-      recurring: kind === 'income' && recurring ? true : undefined,
-      toAccountId: kind === 'transfer' ? toAccountId : undefined,
-      toAmount: cross ? parseAmount(toAmountStr) || suggestedTo : undefined,
-      fundId: kind === 'fund' ? fundId : undefined,
-      personId: kind === 'held' ? personId : undefined,
-    }
+    const fields = buildFields()
     if (tx) updateTx({ ...tx, ...fields })
     else addTx(fields)
     onClose()
+  }
+
+  const saveTemplate = () => {
+    // date is set fresh each time the template is used, so drop it here.
+    const preset = { ...buildFields(), date: undefined }
+    addTemplate({ label: tplLabel.trim(), preset })
+    setSavingTpl(false)
+    setTplLabel('')
   }
 
   const accountChips = data.accounts.map((a) => ({ id: a.id, label: a.name, icon: a.icon }))
@@ -300,6 +312,33 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
       <button className="btn btn-primary btn-full" disabled={!valid} onClick={save}>
         {tx ? 'Save changes' : 'Save'}
       </button>
+
+      {!tx &&
+        valid &&
+        (savingTpl ? (
+          <div className="rowx" style={{ gap: 8 }}>
+            <input
+              className="input"
+              placeholder="Template name"
+              value={tplLabel}
+              autoFocus
+              onChange={(e) => setTplLabel(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && tplLabel.trim() && saveTemplate()}
+            />
+            <button type="button" className="btn btn-sm btn-primary" disabled={!tplLabel.trim()} onClick={saveTemplate}>
+              Save
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setSavingTpl(true)}
+          >
+            <Icon name="repeat" size={14} /> Save as template
+          </button>
+        ))}
 
       {tx && (
         <button className="btn btn-ghost btn-full" style={{ color: 'var(--expense)' }} onClick={() => setConfirmDel(true)}>

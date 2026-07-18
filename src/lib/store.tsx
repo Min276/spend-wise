@@ -7,7 +7,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react'
-import type { AppData, Budgets, EntityKind, EntityMap, ID, Settings, Tx } from './types.ts'
+import type { AppData, Budgets, EntityKind, EntityMap, ID, Settings, Template, Tx } from './types.ts'
 import { defaultSettings, migrateAccountsV2, seedData } from './seed.ts'
 import { shiftDate, todayStr } from './money.ts'
 
@@ -23,6 +23,9 @@ export type Action =
   | { type: 'budgets/set'; budgets: Budgets }
   | { type: 'settings/patch'; patch: Partial<Settings> }
   | { type: 'alerts/fired'; keys: string[] }
+  | { type: 'template/add'; template: Template }
+  | { type: 'template/update'; template: Template }
+  | { type: 'template/delete'; id: ID }
   | { type: 'data/import'; data: AppData }
   | { type: 'data/reset' }
 
@@ -142,6 +145,12 @@ export function reducer(state: AppData, action: Action): AppData {
       for (const k of action.keys) firedKeys[k] = today
       return { ...state, settings: { ...state.settings, firedKeys } }
     }
+    case 'template/add':
+      return { ...state, templates: [...state.templates, action.template] }
+    case 'template/update':
+      return { ...state, templates: state.templates.map((t) => (t.id === action.template.id ? action.template : t)) }
+    case 'template/delete':
+      return { ...state, templates: state.templates.filter((t) => t.id !== action.id) }
     case 'data/import':
       return normalizeData(action.data)
     case 'data/reset':
@@ -160,6 +169,9 @@ export interface Store {
   deleteEntity(kind: EntityKind, id: ID, reassignTo?: ID): void
   setBudgets(budgets: Budgets): void
   patchSettings(patch: Partial<Settings>): void
+  addTemplate(t: Omit<Template, 'id'>): void
+  updateTemplate(t: Template): void
+  deleteTemplate(id: ID): void
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -186,6 +198,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.privacy = hideAmounts ? 'on' : 'off'
   }, [hideAmounts])
+
+  const accent = data.settings.accent
+  useEffect(() => {
+    document.documentElement.dataset.accent = accent || 'teal'
+  }, [accent])
+
+  const density = data.settings.density
+  useEffect(() => {
+    document.documentElement.dataset.density = density || 'comfortable'
+  }, [density])
 
   const theme = data.settings.theme
   useEffect(() => {
@@ -222,6 +244,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteEntity: (kind, id, reassignTo) => dispatch({ type: 'entity/delete', kind, id, reassignTo }),
       setBudgets: (budgets) => dispatch({ type: 'budgets/set', budgets }),
       patchSettings: (patch) => dispatch({ type: 'settings/patch', patch }),
+      addTemplate: (t) => dispatch({ type: 'template/add', template: { ...t, id: crypto.randomUUID() } }),
+      updateTemplate: (t) => dispatch({ type: 'template/update', template: t }),
+      deleteTemplate: (id) => dispatch({ type: 'template/delete', id }),
     }),
     [data],
   )

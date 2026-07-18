@@ -76,6 +76,7 @@ export function seedData(): AppData {
     ],
     heldParties: [{ id: 'aunt', name: 'Aunt', isPrimary: true }],
     transactions: [],
+    templates: [],
     budgets: { perCategory: {} },
     settings: defaultSettings(),
   }
