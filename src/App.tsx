@@ -1,6 +1,14 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { StoreProvider } from './lib/store'
+import { SheetCtx } from './lib/sheet'
 import { useRoute } from './lib/router'
+import { AddSheet, type SheetOpts } from './components/AddSheet'
 import { TabBar } from './components/TabBar'
+import { Dashboard } from './screens/Dashboard'
+import { Ledger } from './screens/Ledger'
+import { More } from './screens/More'
+import { Settings } from './screens/Settings'
+import { ManageAccounts, ManageCategories, ManagePeople, ManageSources } from './screens/Manage'
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -13,19 +21,59 @@ function Placeholder({ title }: { title: string }) {
   )
 }
 
-export default function App() {
+function Screens() {
   const route = useRoute()
-  const [, setAddOpen] = useState(false)
+  switch (route) {
+    case '/':
+      return <Dashboard />
+    case '/ledger':
+      return <Ledger />
+    case '/reports':
+      return <Placeholder title="Reports" />
+    case '/more':
+      return <More />
+    case '/funds':
+      return <Placeholder title="Savings Funds" />
+    case '/held':
+      return <Placeholder title="Held for Others" />
+    case '/budgets':
+      return <Placeholder title="Budgets & Limits" />
+    case '/settings':
+      return <Settings />
+    case '/settings/accounts':
+      return <ManageAccounts />
+    case '/settings/categories':
+      return <ManageCategories />
+    case '/settings/sources':
+      return <ManageSources />
+    case '/settings/people':
+      return <ManagePeople />
+    case '/settings/notifications':
+      return <Placeholder title="Notifications" />
+    default:
+      if (route.startsWith('/held/')) return <Placeholder title="Held history" />
+      return <Dashboard />
+  }
+}
 
-  let screen = <Placeholder title="Spendwise" />
-  if (route === '/ledger') screen = <Placeholder title="Ledger" />
-  else if (route === '/reports') screen = <Placeholder title="Reports" />
-  else if (route.startsWith('/more')) screen = <Placeholder title="More" />
-
+function Shell() {
+  const [sheet, setSheet] = useState<SheetOpts | null>(null)
+  const open = useCallback((opts: SheetOpts) => setSheet(opts), [])
   return (
-    <div className="app">
-      {screen}
-      <TabBar onAdd={() => setAddOpen(true)} />
-    </div>
+    <SheetCtx.Provider value={open}>
+      <div className="app">
+        <Screens />
+        <TabBar onAdd={() => open({})} />
+      </div>
+      {sheet && <AddSheet opts={sheet} onClose={() => setSheet(null)} />}
+    </SheetCtx.Provider>
+  )
+}
+
+export default function App() {
+  return (
+    <StoreProvider>
+      <Shell />
+    </StoreProvider>
   )
 }

@@ -150,7 +150,7 @@ export interface Store {
   addTx(tx: Omit<Tx, 'id' | 'createdAt'>): void
   updateTx(tx: Tx): void
   deleteTx(id: ID): void
-  addEntity<K extends EntityKind>(kind: K, item: Omit<EntityMap[K], 'id'>): void
+  addEntity<K extends EntityKind>(kind: K, item: Omit<EntityMap[K], 'id'>): ID
   updateEntity<K extends EntityKind>(kind: K, item: EntityMap[K]): void
   deleteEntity(kind: EntityKind, id: ID, reassignTo?: ID): void
   setBudgets(budgets: Budgets): void
@@ -203,8 +203,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateTx: (tx) =>
         dispatch({ type: 'tx/update', tx: { ...tx, updatedAt: new Date().toISOString() } }),
       deleteTx: (id) => dispatch({ type: 'tx/delete', id }),
-      addEntity: (kind, item) =>
-        dispatch({ type: 'entity/add', kind, item: { ...item, id: crypto.randomUUID() } }),
+      addEntity: (kind, item) => {
+        const id = crypto.randomUUID()
+        dispatch({ type: 'entity/add', kind, item: { ...item, id } })
+        return id
+      },
       updateEntity: (kind, item) => dispatch({ type: 'entity/update', kind, item }),
       deleteEntity: (kind, id, reassignTo) => dispatch({ type: 'entity/delete', kind, id, reassignTo }),
       setBudgets: (budgets) => dispatch({ type: 'budgets/set', budgets }),

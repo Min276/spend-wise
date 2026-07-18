@@ -9,6 +9,10 @@ const SYMBOLS: Record<string, string> = {
   AUD: 'A$',
 }
 
+export function symbolOf(currency: string): string {
+  return SYMBOLS[currency] ?? currency + ' '
+}
+
 export function fmtMoney(n: number, currency = 'THB'): string {
   const sym = SYMBOLS[currency] ?? currency + ' '
   const sign = n < 0 ? '−' : ''
