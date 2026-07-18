@@ -9,6 +9,7 @@ import {
   filterTxs,
   fundGrowthTHB,
   heldGrowthTHB,
+  monthOf,
   seriesByPeriod,
   shiftDate,
   spendByCategoryTHB,
@@ -43,7 +44,7 @@ export function Reports() {
   const [personId, setPersonId] = useState('')
 
   const { gran, from, to } = useMemo((): { gran: Gran; from: string; to: string } => {
-    if (mode === 'day') return { gran: 'day', from: shiftDate(today, -29), to: today }
+    if (mode === 'day') return { gran: 'day', from: `${monthOf(today)}-01`, to: today }
     if (mode === 'month') {
       const d = new Date()
       d.setDate(1)
@@ -113,7 +114,7 @@ export function Reports() {
 
       <Seg
         options={[
-          { value: 'day', label: '30 days' },
+          { value: 'day', label: 'This month' },
           { value: 'month', label: '12 months' },
           { value: 'year', label: 'Years' },
           { value: 'custom', label: 'Custom' },

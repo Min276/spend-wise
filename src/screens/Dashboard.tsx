@@ -3,6 +3,7 @@ import { useStore } from '../lib/store'
 import { useAddSheet } from '../lib/sheet'
 import {
   expenseTHB,
+  fundBalanceTHB,
   heldTotalTHB,
   incomeTHB,
   monthOf,
@@ -22,6 +23,17 @@ import { EmptyState, Seg } from '../components/ui'
 import { Icon } from '../components/Icons'
 import { BudgetStatusRow } from './Budgets'
 import { Reconciliation } from './Held'
+
+function HeroStat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <span className="hero-stat">
+      <span className="hl">{label}</span>
+      <span className="hv" style={warn ? { color: '#FDE68A' } : undefined}>
+        {value}
+      </span>
+    </span>
+  )
+}
 
 function Stat({ label, value, cls, sign }: { label: string; value: number; cls: string; sign: string }) {
   return (
@@ -55,6 +67,13 @@ export function Dashboard() {
   const overM = budgets.monthlyBudget && spentM > budgets.monthlyBudget
   const held = heldTotalTHB(data)
 
+  const legit = netWorthTHB(data)
+  const totalInclHeld = legit + held
+  const inFunds = data.funds.reduce((s, f) => s + fundBalanceTHB(data, f.id), 0)
+  const leftToday = budgets.dailyLimit ? budgets.dailyLimit - spentD : undefined
+  const leftMonth = budgets.monthlyBudget ? budgets.monthlyBudget - spentM : undefined
+  const fmtLeft = (n: number) => (n >= 0 ? fmtTHB(n) : `${fmtTHB(-n)} over`)
+
   const recent = [...data.transactions]
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6)
@@ -62,8 +81,8 @@ export function Dashboard() {
   return (
     <div className="screen screen-dash">
       <div className="hero-card col-sm">
-        <span className="hero-label">Net worth · my money only</span>
-        <span className="hero-balance">{fmtTHB(netWorthTHB(data))}</span>
+        <span className="hero-label">My money · held excluded</span>
+        <span className="hero-balance">{fmtTHB(legit)}</span>
         <div className="chip-row" style={{ marginInline: 0, paddingInline: 0 }}>
           {data.accounts.map((a) => {
             const bal = spendable(data.transactions, a.id)
@@ -74,6 +93,17 @@ export function Dashboard() {
               </span>
             )
           })}
+        </div>
+        <div className="hero-stats">
+          <HeroStat label="Total · incl. held" value={fmtTHB(totalInclHeld)} />
+          <HeroStat label="Held for others" value={fmtTHB(held)} />
+          <HeroStat label="In savings funds" value={fmtTHB(inFunds)} />
+          {leftToday !== undefined && (
+            <HeroStat label="Budget left today" value={fmtLeft(leftToday)} warn={leftToday < 0} />
+          )}
+          {leftMonth !== undefined && (
+            <HeroStat label="Budget left this month" value={fmtLeft(leftMonth)} warn={leftMonth < 0} />
+          )}
         </div>
       </div>
 

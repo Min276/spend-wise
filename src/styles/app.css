@@ -86,7 +86,7 @@
   color: var(--primary);
 }
 
-.tab-add {
+.tabbar-inner > button.tab-add {
   align-self: center;
   justify-self: center;
   width: 52px;
@@ -102,7 +102,7 @@
   transition: transform 0.15s ease;
 }
 
-.tab-add:active {
+.tabbar-inner > button.tab-add:active {
   transform: translateY(-14px) scale(0.94);
 }
 
@@ -569,6 +569,30 @@ button.lrow:active { background: var(--sunken); }
   flex: none;
 }
 
+.hero-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3) var(--sp-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  padding-top: var(--sp-3);
+  position: relative;
+}
+
+.hero-stat .hl {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.hero-stat .hv {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 /* ---------- ledger day groups ---------- */
 .day-head {
   display: flex;
@@ -829,6 +853,10 @@ input[type='checkbox'].switch:checked::after {
 
   .hero-balance {
     font-size: 3.5rem;
+  }
+
+  .hero-stats {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   /* sheets read as centered dialogs on big screens */
