@@ -5,6 +5,7 @@ import { todayStr } from '../lib/money'
 import { navigate } from '../lib/router'
 import { BackButton, ConfirmDialog, Seg } from '../components/ui'
 import { SyncPanel, useSync } from '../lib/sync'
+import { InstallButton } from '../components/InstallButton'
 import { Icon, type IconName } from '../components/Icons'
 
 const ACCENTS = [
@@ -86,6 +87,8 @@ export function Settings() {
           <h1>Settings</h1>
         </span>
       </div>
+
+      <InstallButton />
 
       <div className="col-sm">
         <span className="label">Appearance</span>
