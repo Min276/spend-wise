@@ -5,6 +5,7 @@ import { getSupabase, isConfigured } from './supabase'
 import { isImportable, normalizeData, useStore } from './store'
 import { createVault, openVault, seal, unseal, type Vault } from './crypto'
 import { useToast } from '../components/Toasts'
+import { disablePush } from './notify'
 import { Field } from '../components/ui'
 
 // Cross-device sync of the single AppData blob, end-to-end encrypted: Supabase only
@@ -310,6 +311,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }
   async function signOut() {
+    await disablePush().catch(() => {})
     const sb = await getSupabase()
     await sb?.auth.signOut()
     lock()

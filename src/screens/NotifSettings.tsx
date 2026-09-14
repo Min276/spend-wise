@@ -1,7 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../lib/store'
+import { useSync } from '../lib/sync'
 import type { ReminderId, ReminderSetting } from '../lib/types'
-import { canNotify, requestPermission, showNotification } from '../lib/notify'
+import {
+  canNotify,
+  disablePush,
+  enablePush,
+  getPushSubscription,
+  pushSupported,
+  requestPermission,
+  showNotification,
+} from '../lib/notify'
+import { navigate } from '../lib/router'
 import { BackButton } from '../components/ui'
 
 const ROWS: { id: ReminderId; label: string; sub: string; night?: boolean }[] = [
@@ -19,10 +29,40 @@ const NIGHT_TIMES = [
   { value: '01:00', label: '1:00 AM' },
 ]
 
+const StatusRow = ({ label, value, ok }: { label: string; value: string; ok?: boolean }) => (
+  <div className="spread">
+    <span className="small">{label}</span>
+    <span className={`small bold ${ok ? 'amt-in' : 'muted'}`}>{value}</span>
+  </div>
+)
+
 export function NotifSettings() {
   const { data, patchSettings } = useStore()
+  const { session } = useSync()
   const [, bump] = useState(0)
+  const [pushOn, setPushOn] = useState<boolean | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const perm = canNotify() ? Notification.permission : 'unsupported'
+  const supported = pushSupported()
+
+  useEffect(() => {
+    getPushSubscription().then((s) => setPushOn(!!s))
+  }, [])
+
+  const run = (fn: () => Promise<unknown>) => async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await fn()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPushOn(!!(await getPushSubscription()))
+      bump((n) => n + 1)
+      setBusy(false)
+    }
+  }
 
   const setReminder = (id: ReminderId, patch: Partial<ReminderSetting>) =>
     patchSettings({
@@ -41,39 +81,64 @@ export function NotifSettings() {
         </span>
       </div>
 
-      {perm === 'unsupported' && (
-        <div className="banner warn">This browser doesn't support notifications. In-app alerts still work.</div>
-      )}
-      {perm === 'default' && (
-        <div className="card col-sm">
-          <span className="bold">🔔 Notifications are off</span>
-          <p className="sub">Allow notifications to get reminders and budget alerts even when Spendwise is in the background.</p>
-          <button
-            className="btn btn-primary"
-            onClick={async () => {
-              await requestPermission()
-              patchSettings({ notifPermissionAsked: true })
-              bump((n) => n + 1)
-            }}
-          >
-            Enable notifications
-          </button>
-        </div>
-      )}
-      {perm === 'denied' && (
+      {perm === 'unsupported' ? (
         <div className="banner warn">
-          Notifications are blocked for this site. Enable them in your browser/site settings, then come back.
+          This browser can't show notifications. On iPhone, add Spendwise to your Home Screen first (iOS 16.4+),
+          then come back here.
         </div>
-      )}
-      {perm === 'granted' && (
-        <div className="card spread">
-          <span className="small">✅ Notifications enabled</span>
-          <button
-            className="btn btn-sm"
-            onClick={() => void showNotification('Spendwise', 'Notifications are working 🎉', '/')}
-          >
-            Send test
-          </button>
+      ) : perm === 'denied' ? (
+        <div className="banner warn">
+          Notifications are blocked for this site. Allow them in your browser/site settings, then come back.
+        </div>
+      ) : (
+        <div className="card col-sm">
+          <span className="bold">🔔 Push notifications</span>
+          <StatusRow label="Permission" value={perm === 'granted' ? 'Granted' : 'Not asked yet'} ok={perm === 'granted'} />
+          <StatusRow
+            label="This device"
+            value={pushOn === null ? '…' : pushOn ? 'On · works even when the app is closed' : 'Off'}
+            ok={!!pushOn}
+          />
+          {!supported ? (
+            <p className="sub">
+              Push isn't configured for this deployment — alerts and reminders still appear as system notifications
+              while Spendwise is open.
+            </p>
+          ) : !session ? (
+            <p className="sub">
+              Sign in first (Settings → Cloud sync) — a server needs to know which device to wake up.{' '}
+              <button className="btn btn-sm" onClick={() => navigate('/settings')}>
+                Go to sign in
+              </button>
+            </p>
+          ) : null}
+          {pushOn ? (
+            <div className="grid2">
+              <button
+                className="btn btn-sm"
+                onClick={() => void showNotification('Spendwise', 'Notifications are working 🎉', '/')}
+              >
+                Send test
+              </button>
+              <button className="btn btn-sm btn-ghost" disabled={busy} onClick={run(disablePush)}>
+                Turn off on this device
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-primary"
+              disabled={busy || (supported && !session)}
+              onClick={run(async () => {
+                if (supported && session) {
+                  if (!(await enablePush(session.user.id, data.settings.reminders)))
+                    throw new Error('Permission was not granted.')
+                } else if (!(await requestPermission())) throw new Error('Permission was not granted.')
+              })}
+            >
+              {supported ? 'Enable push notifications' : 'Allow notifications'}
+            </button>
+          )}
+          {error && <p className="banner over">{error}</p>}
         </div>
       )}
 
@@ -83,7 +148,7 @@ export function NotifSettings() {
           <div className="set-row" style={{ borderTop: 'none', padding: 0 }}>
             <span className="lrow-main">
               <span className="t">Budget threshold alerts</span>
-              <span className="s">Instant alert at 80% and when a limit is exceeded</span>
+              <span className="s">Instant notification at 80% and when a limit is exceeded</span>
             </span>
             <input
               type="checkbox"
@@ -94,7 +159,6 @@ export function NotifSettings() {
             />
           </div>
         </div>
-        <p className="muted">In-app banners and toasts are always on — they need no permission.</p>
       </div>
 
       <div className="col-sm">
@@ -150,13 +214,13 @@ export function NotifSettings() {
       <div className="card col-sm">
         <span className="label">Good to know</span>
         <p className="sub">
-          Spendwise is fully private — no server, so there is no true push while the app is closed. Reminders
-          fire while the app (or installed PWA) is open or running in the background, with a catch-up when you
-          come back the same day.
+          With push on, reminders arrive even when Spendwise is closed. The server only ever learns your reminder
+          times and timezone — the notification text is written on your device from your own data, so your ledger
+          stays private.
         </p>
         <p className="sub">
-          On iPhone, add Spendwise to your Home Screen (iOS 16.4+) — Safari only allows notifications for
-          installed web apps.
+          Budget alerts fire the moment an entry crosses a limit. Without push, reminders still show while the app
+          is open or in the background.
         </p>
       </div>
     </div>

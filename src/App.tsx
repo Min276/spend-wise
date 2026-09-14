@@ -1,13 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { StoreProvider, useStore } from './lib/store'
-import { SyncProvider } from './lib/sync'
+import { SyncProvider, useSync } from './lib/sync'
 import { SheetCtx } from './lib/sheet'
 import { useRoute } from './lib/router'
 import { newAlerts } from './lib/alerts'
-import { notifyAlert, startReminderScheduler } from './lib/notify'
+import { notifyAlert, startReminderScheduler, syncPushSchedule } from './lib/notify'
 import { AddSheet, type SheetOpts } from './components/AddSheet'
 import { TabBar } from './components/TabBar'
-import { ToastProvider, useToast } from './components/Toasts'
+import { ToastProvider } from './components/Toasts'
 import { Icon } from './components/Icons'
 import { Dashboard } from './screens/Dashboard'
 import { Ledger } from './screens/Ledger'
@@ -72,11 +72,10 @@ function Screens() {
   }
 }
 
-// Fires threshold alerts the instant a transaction or budget change crosses a
-// limit, deduped per day/month via settings.firedKeys.
+// Fires threshold alerts as system notifications the instant a transaction or
+// budget change crosses a limit, deduped per day/month via settings.firedKeys.
 function AlertWatcher() {
   const { data, dispatch } = useStore()
-  const toast = useToast()
   const prev = useRef({ txs: data.transactions, budgets: data.budgets })
 
   useEffect(() => {
@@ -85,32 +84,34 @@ function AlertWatcher() {
     if (!changed) return
     const events = newAlerts(data)
     if (!events.length) return
-    for (const e of events) {
-      toast({ kind: e.kind, title: e.title, body: e.body })
-      notifyAlert(data, e)
-    }
+    for (const e of events) notifyAlert(data, e)
     dispatch({ type: 'alerts/fired', keys: events.map((e) => e.key) })
-  }, [data, toast, dispatch])
+  }, [data, dispatch])
 
   return null
 }
 
-// Minute-tick reminder scheduler + service-worker notification-click routing.
+// In-page reminder scheduler (fallback when this device has no push
+// subscription), push-schedule mirroring, and SW notification-click routing.
 function ReminderScheduler() {
   const { data, dispatch } = useStore()
-  const toast = useToast()
+  const { session } = useSync()
   const ref = useRef(data)
   ref.current = data
 
   useEffect(
-    () =>
-      startReminderScheduler(
-        () => ref.current,
-        (keys) => dispatch({ type: 'alerts/fired', keys }),
-        (title, body) => toast({ kind: 'ok', title, body }),
-      ),
-    [dispatch, toast],
+    () => startReminderScheduler(() => ref.current, (keys) => dispatch({ type: 'alerts/fired', keys })),
+    [dispatch],
   )
+
+  // Keep the server's copy of this device's reminder times (and timezone) fresh.
+  const reminders = data.settings.reminders
+  const userId = session?.user.id
+  useEffect(() => {
+    if (!userId) return
+    const t = setTimeout(() => syncPushSchedule(userId, reminders).catch(() => {}), 1500)
+    return () => clearTimeout(t)
+  }, [userId, reminders])
 
   useEffect(() => {
     const sw = navigator.serviceWorker

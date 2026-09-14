@@ -1,7 +1,7 @@
-import type { AppData, ReminderId } from './types.ts'
+import type { AppData, ReminderSetting, ReminderId } from './types.ts'
 import type { AlertEvent } from './alerts.ts'
-import { dateStr, expenseTHB, monthOf, shiftDate, spentMonthTHB } from './money.ts'
-import { fmtTHB } from './format.ts'
+import { buildReminder, dueReminders, localClock, reminderKey } from './reminders.ts'
+import { getSupabase } from './supabase.ts'
 
 export const canNotify = () => 'Notification' in window
 export const hasPermission = () => canNotify() && Notification.permission === 'granted'
@@ -29,7 +29,7 @@ export async function showNotification(title: string, body: string, route = '/',
       })
     else new Notification(title, { body, tag, icon: '/icons/icon-192.png' })
   } catch {
-    // notifications unavailable — in-app alerts already cover this
+    // notifications unavailable on this platform
   }
 }
 
@@ -38,78 +38,94 @@ export function notifyAlert(data: AppData, e: AlertEvent) {
   void showNotification(e.title, e.body, e.route, e.key)
 }
 
-/* ---------- scheduled reminders ---------- */
+/* ---------- web push (fires even when the app is closed) ---------- */
 
-function briefBody(data: AppData, forDate: string, prevDay: boolean): string {
-  const spentD = expenseTHB(data, forDate, forDate)
-  const spentM = spentMonthTHB(data, monthOf(forDate))
-  const { dailyLimit, monthlyBudget } = data.budgets
-  const word = prevDay ? 'Yesterday' : 'Today'
-  const dPart = dailyLimit
-    ? `${word}: ${fmtTHB(spentD)} of ${fmtTHB(dailyLimit)} (${
-        spentD <= dailyLimit ? fmtTHB(dailyLimit - spentD) + ' left' : fmtTHB(spentD - dailyLimit) + ' over'
-      })`
-    : `${word}: ${fmtTHB(spentD)} spent`
-  const mPart = monthlyBudget
-    ? `Month: ${fmtTHB(spentM)} of ${fmtTHB(monthlyBudget)} (${
-        spentM <= monthlyBudget ? fmtTHB(monthlyBudget - spentM) + ' left' : fmtTHB(spentM - monthlyBudget) + ' over'
-      })`
-    : `Month: ${fmtTHB(spentM)} spent`
-  return `${dPart} · ${mPart}`
+const VAPID_PUBLIC = import.meta.env.VITE_VAPID_PUBLIC_KEY
+export const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Bangkok'
+
+export const pushSupported = () =>
+  !!VAPID_PUBLIC && canNotify() && 'serviceWorker' in navigator && 'PushManager' in window
+
+export async function getPushSubscription(): Promise<PushSubscription | null> {
+  if (!pushSupported()) return null
+  try {
+    const reg = await navigator.serviceWorker.ready
+    return await reg.pushManager.getSubscription()
+  } catch {
+    return null
+  }
 }
 
-function checkinBody(data: AppData, forDate: string, prevDay: boolean): string {
-  const spent = expenseTHB(data, forDate, forDate)
-  const { dailyLimit } = data.budgets
-  const word = prevDay ? 'Yesterday' : 'Today'
-  if (!dailyLimit) return `${word}: ${fmtTHB(spent)} spent`
-  return `${word}: ${fmtTHB(spent)} of ${fmtTHB(dailyLimit)} · ${
-    spent <= dailyLimit ? fmtTHB(dailyLimit - spent) + ' left' : fmtTHB(spent - dailyLimit) + ' over'
-  }`
+function toUint8(base64url: string): Uint8Array<ArrayBuffer> {
+  const b64 = (base64url + '='.repeat((4 - (base64url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')
+  const bin = atob(b64)
+  const out = new Uint8Array(new ArrayBuffer(bin.length))
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
 }
 
-const REMINDER_META: Record<ReminderId, { title: string; kind: 'brief' | 'checkin'; route: string }> = {
-  morningBrief: { title: 'Morning brief ☀️', kind: 'brief', route: '/budgets' },
-  eveningBrief: { title: 'Evening summary 🌙', kind: 'brief', route: '/budgets' },
-  checkinMorning: { title: 'Morning check-in ☕', kind: 'checkin', route: '/' },
-  checkinAfternoon: { title: 'Afternoon check-in 🌤', kind: 'checkin', route: '/' },
-  checkinEvening: { title: 'Evening check-in 🌆', kind: 'checkin', route: '/' },
-  checkinNight: { title: 'Night check-in 🌙', kind: 'checkin', route: '/' },
+// Mirrors this device's subscription + schedule to the server row the push
+// tick reads. The row holds only endpoint/keys/timezone/times — never ledger data.
+export async function syncPushSchedule(
+  userId: string,
+  reminders: Record<ReminderId, ReminderSetting>,
+  sub?: PushSubscription | null,
+): Promise<void> {
+  const s = sub ?? (await getPushSubscription())
+  const sb = await getSupabase()
+  if (!s || !sb) return
+  const json = s.toJSON()
+  const { error } = await sb.from('push_subscriptions').upsert(
+    {
+      endpoint: s.endpoint,
+      user_id: userId,
+      p256dh: json.keys?.p256dh ?? '',
+      auth: json.keys?.auth ?? '',
+      tz: localTimeZone(),
+      reminders,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'endpoint' },
+  )
+  if (error) throw new Error(error.message)
 }
 
-// Minute tick + visibility catch-up. Fires each due reminder once per day
-// (settings.firedKeys), within a 4h grace window after its scheduled time.
-// A 00:00/01:00 night slot reports the day that just ended.
-export function startReminderScheduler(
-  getData: () => AppData,
-  markFired: (keys: string[]) => void,
-  fallback: (title: string, body: string) => void,
-): () => void {
+export async function enablePush(userId: string, reminders: Record<ReminderId, ReminderSetting>): Promise<boolean> {
+  if (!pushSupported() || !(await requestPermission())) return false
+  const reg = await navigator.serviceWorker.ready
+  const sub =
+    (await reg.pushManager.getSubscription()) ??
+    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toUint8(VAPID_PUBLIC!) }))
+  await syncPushSchedule(userId, reminders, sub)
+  return true
+}
+
+export async function disablePush(): Promise<void> {
+  const sub = await getPushSubscription()
+  if (!sub) return
+  const sb = await getSupabase()
+  await sb?.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+  await sub.unsubscribe()
+}
+
+/* ---------- in-page fallback scheduler ---------- */
+
+// Minute tick + visibility catch-up for devices without a push subscription
+// (not signed in, or push unsupported). Fires each due reminder once per day
+// as a system notification, within a 4h grace window after its time.
+export function startReminderScheduler(getData: () => AppData, markFired: (keys: string[]) => void): () => void {
+  let pushed = false
+  void getPushSubscription().then((s) => (pushed = !!s))
   const tick = () => {
+    if (pushed || !hasPermission()) return
     const data = getData()
-    const now = new Date()
-    const today = dateStr(now)
-    const nowMin = now.getHours() * 60 + now.getMinutes()
-    const fired: string[] = []
-    for (const id of Object.keys(REMINDER_META) as ReminderId[]) {
-      const meta = REMINDER_META[id]
-      const s = data.settings.reminders[id]
-      if (!s?.enabled || !s.time) continue
-      const [h, m] = s.time.split(':').map(Number)
-      const schedMin = (h ?? 0) * 60 + (m ?? 0)
-      const smallHours = schedMin < 6 * 60
-      const reportDate = smallHours ? shiftDate(today, -1) : today
-      const key = `rem-${id}-${reportDate}`
-      if (data.settings.firedKeys[key]) continue
-      const since = nowMin - schedMin
-      if (since < 0 || since > 240) continue
-      const body =
-        meta.kind === 'brief' ? briefBody(data, reportDate, smallHours) : checkinBody(data, reportDate, smallHours)
-      if (hasPermission()) void showNotification(meta.title, body, meta.route, key)
-      else fallback(meta.title, body)
-      fired.push(key)
+    const { date, nowMin } = localClock(new Date(), localTimeZone())
+    const due = dueReminders(data.settings.reminders, date, nowMin, (id, d) => !!data.settings.firedKeys[reminderKey(id, d)])
+    for (const d of due) {
+      const n = buildReminder(data, d.id, d.reportDate, d.smallHours)
+      void showNotification(n.title, n.body, n.route, n.tag)
     }
-    if (fired.length) markFired(fired)
+    if (due.length) markFired(due.map((d) => reminderKey(d.id, d.reportDate)))
   }
   tick()
   const iv = setInterval(tick, 60_000)

@@ -11,6 +11,7 @@ import type { AppData, Budgets, EntityKind, EntityMap, ID, Settings, Template, T
 import { seedData } from './seed.ts'
 import { setDisplay } from './format.ts'
 import { isImportable, normalizeData, reducer, type Action } from './reducer.ts'
+import { writeSnapshot } from './snapshot.ts'
 
 export { isImportable, normalizeData, reducer, type Action }
 
@@ -55,11 +56,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const t = setTimeout(() => {
+      const json = JSON.stringify(data)
       try {
-        localStorage.setItem(KEY, JSON.stringify(data))
+        localStorage.setItem(KEY, json)
       } catch {
         // storage full/unavailable — data stays in memory
       }
+      void writeSnapshot(json)
     }, 250)
     return () => clearTimeout(t)
   }, [data])

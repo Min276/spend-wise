@@ -3,7 +3,6 @@ import { useStore } from '../lib/store'
 import type { ID } from '../lib/types'
 import { spentMonthByCategoryTHB, spentMonthTHB, spentTodayTHB } from '../lib/money'
 import { displayOf, fmtTHB } from '../lib/format'
-import { canNotify, requestPermission } from '../lib/notify'
 import { BackButton, ConfirmDialog, Field, Progress, RowIcon, Sheet, parseAmount } from '../components/ui'
 import { Icon } from '../components/Icons'
 
@@ -132,7 +131,7 @@ export function BudgetStatusRow({
 }
 
 export function Budgets() {
-  const { data, setBudgets, patchSettings } = useStore()
+  const { data, setBudgets } = useStore()
   const { budgets } = data
   const [limitSheet, setLimitSheet] = useState(false)
   const [catSheet, setCatSheet] = useState<{ categoryId?: ID } | null>(null)
@@ -148,12 +147,6 @@ export function Budgets() {
   const overM = budgets.monthlyBudget && spentM > budgets.monthlyBudget
   const warnD = !overD && budgets.dailyLimit && spentD >= 0.8 * budgets.dailyLimit
   const warnM = !overM && budgets.monthlyBudget && spentM >= 0.8 * budgets.monthlyBudget
-
-  const showPermCard =
-    hasBudget &&
-    !data.settings.notifPermissionAsked &&
-    canNotify() &&
-    Notification.permission === 'default'
 
   return (
     <div className="screen">
@@ -185,29 +178,6 @@ export function Budgets() {
       {warnM && (
         <div className="banner warn">
           <Icon name="warn" size={18} /> {fmtTHB(budgets.monthlyBudget! - spentM)} left in this month's budget.
-        </div>
-      )}
-
-      {showPermCard && (
-        <div className="card col-sm">
-          <span className="bold">🔔 Get alerts as notifications?</span>
-          <p className="sub">
-            Spendwise can notify you when you approach or exceed a limit, plus scheduled spending check-ins.
-          </p>
-          <div className="grid2">
-            <button className="btn" onClick={() => patchSettings({ notifPermissionAsked: true })}>
-              Not now
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={async () => {
-                await requestPermission()
-                patchSettings({ notifPermissionAsked: true })
-              }}
-            >
-              Enable
-            </button>
-          </div>
         </div>
       )}
 

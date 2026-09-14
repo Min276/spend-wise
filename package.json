@@ -7,18 +7,20 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "check": "node check/money.check.ts && node check/assistant.check.ts && node check/crypto.check.ts && node check/currency.check.ts",
+    "check": "node check/money.check.ts && node check/assistant.check.ts && node check/crypto.check.ts && node check/currency.check.ts && node check/reminders.check.ts",
     "check:assistant": "node check/assistant.check.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^6.0.3",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",

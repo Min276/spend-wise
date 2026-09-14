@@ -118,7 +118,6 @@ export interface Settings {
   lastUsedAccountId?: ID
   currency?: string
   rates?: { USD: number; VND: number; MMK: number }
-  notifPermissionAsked?: boolean
   thresholdNotifs: boolean
   reminders: Record<ReminderId, ReminderSetting>
   firedKeys: Record<string, string>
