@@ -19,6 +19,7 @@ import { Held, HeldHistory } from './screens/Held'
 import { Debts, DebtHistory } from './screens/Debts'
 import { Budgets } from './screens/Budgets'
 import { NotifSettings } from './screens/NotifSettings'
+import { Currency } from './screens/Currency'
 import { Templates } from './screens/Templates'
 import { todayStr } from './lib/money'
 import type { Tx } from './lib/types'
@@ -58,6 +59,8 @@ function Screens() {
       return <ManagePeople />
     case '/settings/notifications':
       return <NotifSettings />
+    case '/settings/currency':
+      return <Currency />
     case '/settings/templates':
       return <Templates />
     default:

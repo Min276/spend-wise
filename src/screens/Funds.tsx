@@ -3,19 +3,20 @@ import { useStore } from '../lib/store'
 import { useAddSheet } from '../lib/sheet'
 import type { Fund } from '../lib/types'
 import { filterTxs, fundBalanceTHB, monthOf, savingsNetTHB, todayStr, yearOf } from '../lib/money'
-import { fmtDate, fmtTHB } from '../lib/format'
+import { displayOf, fmtDate, fmtTHB } from '../lib/format'
 import { CHART_PALETTE } from '../lib/seed'
-import { BackButton, EmptyState, Field, Progress, RowIcon, Seg, Sheet, parseAmount } from '../components/ui'
+import { BackButton, EmptyState, Field, Progress, RowIcon, Seg, Sheet } from '../components/ui'
 import { Icon } from '../components/Icons'
 import { TxRow } from '../components/TxRow'
 import { DeleteEntityDialog } from './Manage'
 
 function FundForm({ fund, onClose }: { fund?: Fund; onClose: () => void }) {
   const { data, addEntity, updateEntity } = useStore()
+  const disp = displayOf(data.settings)
   const [name, setName] = useState(fund?.name ?? '')
   const [icon, setIcon] = useState(fund?.icon ?? '🎯')
   const [color, setColor] = useState(fund?.color ?? '#4F46E5')
-  const [targetStr, setTargetStr] = useState(fund?.target ? String(fund.target) : '')
+  const [targetStr, setTargetStr] = useState(fund?.target ? disp.str(fund.target) : '')
   const [deadline, setDeadline] = useState(fund?.deadline ?? '')
   const [accountId, setAccountId] = useState(fund?.accountId ?? '')
 
@@ -24,7 +25,7 @@ function FundForm({ fund, onClose }: { fund?: Fund; onClose: () => void }) {
       name: name.trim(),
       icon: icon.trim() || '🎯',
       color,
-      target: parseAmount(targetStr) || undefined,
+      target: disp.parse(targetStr, fund?.target),
       deadline: deadline || undefined,
       accountId: accountId || undefined,
     }
@@ -42,7 +43,7 @@ function FundForm({ fund, onClose }: { fund?: Fund; onClose: () => void }) {
         <Field label="Icon (emoji)">
           <input className="input" value={icon} maxLength={4} onChange={(e) => setIcon(e.target.value)} />
         </Field>
-        <Field label="Target amount (฿, optional)">
+        <Field label={`Target amount (${disp.sym.trim()}, optional)`}>
           <input
             className="input"
             inputMode="decimal"

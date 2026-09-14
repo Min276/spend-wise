@@ -18,7 +18,7 @@ import {
   toTHB,
   yearOf,
 } from '../lib/money'
-import { fmtMoney, fmtTHB } from '../lib/format'
+import { displayCurrency, fmtMoney, fmtTHB } from '../lib/format'
 import { navigate } from '../lib/router'
 import { TxRow } from '../components/TxRow'
 import { EmptyState, Seg } from '../components/ui'
@@ -110,7 +110,7 @@ export function Dashboard() {
                 <span aria-hidden>{a.icon}</span> {a.name}:{' '}
                 <span className="money">
                   {fmtMoney(bal, a.currency)}
-                  {a.currency !== 'THB' && showFx && ` (≈${fmtTHB(toTHB(bal, a))})`}
+                  {a.currency !== displayCurrency() && showFx && ` (≈${fmtTHB(toTHB(bal, a))})`}
                 </span>
               </span>
             )

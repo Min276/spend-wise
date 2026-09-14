@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import type { Account, Category, EntityKind, HeldParty, ID, IncomeSource } from '../lib/types'
 import { debtForPartyTHB, heldForPartyTHB, lentForPartyTHB } from '../lib/money'
-import { fmtTHB } from '../lib/format'
+import { fmtTHB, isAppCurrency, thbPerUnit } from '../lib/format'
 import { CHART_PALETTE } from '../lib/seed'
 import { ConfirmDialog, Field, Overlay, RowIcon, Sheet, BackButton, parseAmount } from '../components/ui'
 import { Icon } from '../components/Icons'
@@ -128,7 +128,7 @@ function Swatches({ value, onChange }: { value: string; onChange: (c: string) =>
   )
 }
 
-const CURRENCIES = ['THB', 'USD', 'EUR', 'GBP', 'JPY', 'SGD', 'MMK', 'AUD']
+const CURRENCIES = ['THB', 'USD', 'VND', 'MMK', 'EUR', 'GBP', 'JPY', 'SGD', 'AUD']
 
 /* ---------- accounts ---------- */
 
@@ -148,7 +148,8 @@ function AccountForm({ account, onClose }: { account?: Account; onClose: () => v
       icon: icon.trim() || '🏦',
       color,
       currency: currency.trim().toUpperCase() || 'THB',
-      fxRateToTHB: currency === 'THB' ? 1 : parseAmount(fxStr) || 1,
+      // app currencies get the shared rate on save (store applies it); others keep this field
+      fxRateToTHB: thbPerUnit(currency) ?? (parseAmount(fxStr) || 1),
     }
     if (account) updateEntity('accounts', { ...account, ...item })
     else addEntity('accounts', item)
@@ -181,7 +182,10 @@ function AccountForm({ account, onClose }: { account?: Account; onClose: () => v
           <option key={c} value={c} />
         ))}
       </datalist>
-      {currency !== 'THB' && (
+      {currency && isAppCurrency(currency) && currency !== 'THB' && (
+        <p className="muted">Uses the shared {currency} rate from Settings → Currency & rates.</p>
+      )}
+      {currency && !isAppCurrency(currency) && (
         <Field label={`FX rate — 1 ${currency || '?'} = ? ฿`}>
           <input
             className="input"

@@ -2,29 +2,30 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import type { ID } from '../lib/types'
 import { spentMonthByCategoryTHB, spentMonthTHB, spentTodayTHB } from '../lib/money'
-import { fmtTHB } from '../lib/format'
+import { displayOf, fmtTHB } from '../lib/format'
 import { canNotify, requestPermission } from '../lib/notify'
 import { BackButton, ConfirmDialog, Field, Progress, RowIcon, Sheet, parseAmount } from '../components/ui'
 import { Icon } from '../components/Icons'
 
 function LimitSheet({ onClose }: { onClose: () => void }) {
   const { data, setBudgets } = useStore()
-  const [dailyStr, setDailyStr] = useState(data.budgets.dailyLimit ? String(data.budgets.dailyLimit) : '')
+  const disp = displayOf(data.settings)
+  const [dailyStr, setDailyStr] = useState(data.budgets.dailyLimit ? disp.str(data.budgets.dailyLimit) : '')
   const [monthlyStr, setMonthlyStr] = useState(
-    data.budgets.monthlyBudget ? String(data.budgets.monthlyBudget) : '',
+    data.budgets.monthlyBudget ? disp.str(data.budgets.monthlyBudget) : '',
   )
   const ok = (s: string) => /^[\d,]*\.?\d{0,2}$/.test(s)
   const save = () => {
     setBudgets({
       ...data.budgets,
-      dailyLimit: parseAmount(dailyStr) || undefined,
-      monthlyBudget: parseAmount(monthlyStr) || undefined,
+      dailyLimit: disp.parse(dailyStr, data.budgets.dailyLimit),
+      monthlyBudget: disp.parse(monthlyStr, data.budgets.monthlyBudget),
     })
     onClose()
   }
   return (
     <Sheet title="Set limits" onClose={onClose}>
-      <Field label="Daily spending limit (฿)">
+      <Field label={`Daily spending limit (${disp.sym.trim()})`}>
         <input
           className="input"
           inputMode="decimal"
@@ -34,7 +35,7 @@ function LimitSheet({ onClose }: { onClose: () => void }) {
           onChange={(e) => ok(e.target.value) && setDailyStr(e.target.value)}
         />
       </Field>
-      <Field label="Monthly budget (฿)">
+      <Field label={`Monthly budget (${disp.sym.trim()})`}>
         <input
           className="input"
           inputMode="decimal"
@@ -53,14 +54,14 @@ function LimitSheet({ onClose }: { onClose: () => void }) {
 function CatBudgetSheet({ categoryId, onClose }: { categoryId?: ID; onClose: () => void }) {
   const { data, setBudgets } = useStore()
   const editing = !!categoryId
+  const disp = displayOf(data.settings)
   const available = data.categories.filter((c) => editing || !(c.id in data.budgets.perCategory))
   const [catId, setCatId] = useState(categoryId ?? available[0]?.id ?? '')
-  const [amountStr, setAmountStr] = useState(
-    categoryId && data.budgets.perCategory[categoryId] ? String(data.budgets.perCategory[categoryId]) : '',
-  )
+  const prev = categoryId ? data.budgets.perCategory[categoryId] : undefined
+  const [amountStr, setAmountStr] = useState(prev ? disp.str(prev) : '')
   const save = () => {
-    const amt = parseAmount(amountStr)
-    if (!catId || amt <= 0) return
+    const amt = disp.parse(amountStr, prev)
+    if (!catId || !amt) return
     setBudgets({ ...data.budgets, perCategory: { ...data.budgets.perCategory, [catId]: amt } })
     onClose()
   }
@@ -81,7 +82,7 @@ function CatBudgetSheet({ categoryId, onClose }: { categoryId?: ID; onClose: () 
           ))}
         </select>
       </Field>
-      <Field label="Monthly budget (฿)">
+      <Field label={`Monthly budget (${disp.sym.trim()})`}>
         <input
           className="input"
           inputMode="decimal"

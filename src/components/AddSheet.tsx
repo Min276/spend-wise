@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import { DEBT_TYPES, type ID, type Tx, type TxType } from '../lib/types'
 import { todayStr } from '../lib/money'
-import { fmtMoney, fmtTHB, symbolOf } from '../lib/format'
+import { APP_CURRENCIES, convert, displayCurrency, displayRates, fmtMoney, fmtTHB, symbolOf, thbPerUnit } from '../lib/format'
 import { AmountInput, ConfirmDialog, Field, parseAmount, Seg, Sheet } from './ui'
 import { Icon } from './Icons'
 
@@ -100,7 +100,11 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
     init?.type === 'fund_withdraw' || init?.type === 'held_reduce' ? 'out' : 'in',
   )
   const [debtType, setDebtType] = useState<DebtType>(init?.type && isDebt(init.type) ? init.type : 'borrow')
-  const [amountStr, setAmountStr] = useState(init?.amount ? String(init.amount) : '')
+  const [amountStr, setAmountStr] = useState(
+    init?.origAmount ? String(init.origAmount) : init?.amount ? String(init.amount) : '',
+  )
+  // '' = the account's own currency; otherwise the amount is typed in this currency and converted.
+  const [entryCur, setEntryCur] = useState(init?.origCurrency ?? '')
   const [toAmountStr, setToAmountStr] = useState(tx?.toAmount ? String(tx.toAmount) : '')
   const [accountId, setAccountId] = useState<ID>(
     init?.accountId ?? data.settings.lastUsedAccountId ?? data.accounts[0]?.id ?? '',
@@ -119,7 +123,14 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
 
   const acc = data.accounts.find((a) => a.id === accountId)
   const toAcc = data.accounts.find((a) => a.id === toAccountId)
-  const amount = parseAmount(amountStr)
+  const accCur = acc?.currency ?? 'THB'
+  const typedCur = entryCur && entryCur !== accCur ? entryCur : accCur
+  const typed = parseAmount(amountStr)
+  // Stored amounts are always in the account's currency; a foreign entry converts
+  // through ฿ using the shared rates (and the account's own rate for exotic ones).
+  const amount =
+    typedCur === accCur ? typed : (typed * (thbPerUnit(typedCur, displayRates()) ?? 1)) / (acc?.fxRateToTHB || 1)
+  const dispCur = displayCurrency()
   const cross = kind === 'transfer' && !!acc && !!toAcc && acc.currency !== toAcc.currency
   const suggestedTo = cross && acc && toAcc ? (amount * acc.fxRateToTHB) / (toAcc.fxRateToTHB || 1) : 0
 
@@ -160,6 +171,8 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
     toAmount: cross ? parseAmount(toAmountStr) || suggestedTo : undefined,
     fundId: kind === 'fund' ? fundId : undefined,
     personId: withParty ? personId : undefined,
+    origAmount: typedCur !== accCur ? typed : undefined,
+    origCurrency: typedCur !== accCur ? typedCur : undefined,
   })
 
   const save = () => {
@@ -195,14 +208,29 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
       />
 
       <div className="col-sm">
-        <AmountInput
-          value={amountStr}
-          onChange={setAmountStr}
-          symbol={symbolOf(acc?.currency ?? 'THB')}
-          autoFocus={!tx}
-        />
-        {acc && acc.currency !== 'THB' && amount > 0 && (
-          <span className="muted">≈ {fmtTHB(amount * acc.fxRateToTHB)} at rate {acc.fxRateToTHB}</span>
+        <AmountInput value={amountStr} onChange={setAmountStr} symbol={symbolOf(typedCur)} autoFocus={!tx} />
+        <div className="rowx" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <span className="xs muted">Typed in</span>
+          {[...new Set([accCur, ...APP_CURRENCIES])].map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`chip ${c === typedCur ? 'on' : ''}`}
+              style={{ minHeight: 26, padding: '2px 10px' }}
+              onClick={() => setEntryCur(c === accCur ? '' : c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        {typed > 0 && typedCur !== accCur && (
+          <span className="muted">
+            = {fmtMoney(amount, accCur)} in {acc?.name ?? 'the account'} at 1 {typedCur} ={' '}
+            {fmtMoney(convert(1, typedCur, accCur, displayRates()), accCur)}
+          </span>
+        )}
+        {typed > 0 && accCur !== dispCur && typedCur === accCur && (
+          <span className="muted">≈ {fmtTHB(amount * (acc?.fxRateToTHB ?? 1))}</span>
         )}
       </div>
 

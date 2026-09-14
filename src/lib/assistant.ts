@@ -23,7 +23,7 @@ import {
   toTHB,
   yearOf,
 } from './money.ts'
-import { fmtDate, fmtMoney, fmtMonthKey, fmtTHB, symbolOf } from './format.ts'
+import { displayCurrency, fmtDate, fmtMoney, fmtMonthKey, fmtTHB, symbolOf } from './format.ts'
 
 /* ---------- reply blocks ---------- */
 
@@ -244,7 +244,8 @@ function balanceBlocks(data: AppData): Block[] {
       rows: data.accounts.map((a) => {
         const sp = spendable(data.transactions, a.id)
         const raw = accountRaw(data.transactions, a.id)
-        const f = (n: number) => fmtMoney(n, a.currency) + (a.currency !== 'THB' ? ` (≈${fmtTHB(toTHB(n, a))})` : '')
+        const f = (n: number) =>
+          fmtMoney(n, a.currency) + (a.currency !== displayCurrency() ? ` (≈${fmtTHB(toTHB(n, a))})` : '')
         return [`${a.icon} ${a.name}`, f(sp), f(raw)]
       }),
       footer: held > 0.005 ? 'Raw includes money you are holding for others.' : undefined,

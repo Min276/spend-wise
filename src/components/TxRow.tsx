@@ -1,7 +1,7 @@
 import { useStore } from '../lib/store'
 import type { Tx } from '../lib/types'
 import { toTHB } from '../lib/money'
-import { fmtDate, fmtMoney, fmtTHB } from '../lib/format'
+import { displayCurrency, fmtDate, fmtMoney, fmtTHB } from '../lib/format'
 import { RowIcon } from './ui'
 
 export function TxRow({ tx, onClick }: { tx: Tx; onClick?: () => void }) {
@@ -82,8 +82,9 @@ export function TxRow({ tx, onClick }: { tx: Tx; onClick?: () => void }) {
     }
   }
 
+  if (tx.origCurrency && tx.origAmount) sub += ` · ${fmtMoney(tx.origAmount, tx.origCurrency)}`
   if (tx.note) sub += ` · ${tx.note}`
-  const foreign = acc && acc.currency !== 'THB'
+  const foreign = acc && acc.currency !== displayCurrency()
 
   const inner = (
     <>

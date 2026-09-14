@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "check": "node check/money.check.ts && node check/assistant.check.ts && node check/crypto.check.ts",
+    "check": "node check/money.check.ts && node check/assistant.check.ts && node check/crypto.check.ts && node check/currency.check.ts",
     "check:assistant": "node check/assistant.check.ts"
   },
   "dependencies": {

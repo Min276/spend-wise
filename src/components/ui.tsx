@@ -137,10 +137,7 @@ export function AmountInput({
   )
 }
 
-export const parseAmount = (s: string): number => {
-  const n = Number(s.replace(/,/g, ''))
-  return Number.isFinite(n) ? n : 0
-}
+export { parseAmount } from '../lib/format'
 
 export function Seg<T extends string>({
   options,

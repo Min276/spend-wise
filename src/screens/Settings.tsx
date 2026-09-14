@@ -204,6 +204,12 @@ export function Settings() {
             sub={`${data.heldParties.length} · held funds, debts & loans`}
             to="/settings/people"
           />
+          <NavRow
+            icon="swap"
+            label="Currency & rates"
+            sub={`Showing ${data.settings.currency ?? 'THB'} · 1 USD = ${data.settings.rates?.USD ?? 33} THB`}
+            to="/settings/currency"
+          />
           <NavRow icon="bell" label="Notifications & reminders" to="/settings/notifications" />
           <NavRow
             icon="repeat"

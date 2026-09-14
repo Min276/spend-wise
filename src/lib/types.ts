@@ -71,6 +71,9 @@ export interface Tx {
   toAmount?: number
   fundId?: ID
   personId?: ID
+  // When the amount was typed in another currency: what was entered, for display/edit.
+  origAmount?: number
+  origCurrency?: string
 }
 
 export interface Budgets {
@@ -113,6 +116,8 @@ export interface Settings {
   heroStats?: Record<string, boolean>
   density?: 'comfortable' | 'compact'
   lastUsedAccountId?: ID
+  currency?: string
+  rates?: { USD: number; VND: number; MMK: number }
   notifPermissionAsked?: boolean
   thresholdNotifs: boolean
   reminders: Record<ReminderId, ReminderSetting>

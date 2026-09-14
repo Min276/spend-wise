@@ -8,57 +8,13 @@ import {
   type ReactNode,
 } from 'react'
 import type { AppData, Budgets, EntityKind, EntityMap, ID, Settings, Template, Tx } from './types.ts'
-import { defaultSettings, migrateAccountsV2, seedData } from './seed.ts'
-import { shiftDate, todayStr } from './money.ts'
+import { seedData } from './seed.ts'
+import { setDisplay } from './format.ts'
+import { isImportable, normalizeData, reducer, type Action } from './reducer.ts'
+
+export { isImportable, normalizeData, reducer, type Action }
 
 const KEY = 'spendwise:v1'
-
-export type Action =
-  | { type: 'tx/add'; tx: Tx }
-  | { type: 'tx/update'; tx: Tx }
-  | { type: 'tx/delete'; id: ID }
-  | { type: 'entity/add'; kind: EntityKind; item: EntityMap[EntityKind] }
-  | { type: 'entity/update'; kind: EntityKind; item: EntityMap[EntityKind] }
-  | { type: 'entity/delete'; kind: EntityKind; id: ID; reassignTo?: ID }
-  | { type: 'budgets/set'; budgets: Budgets }
-  | { type: 'settings/patch'; patch: Partial<Settings> }
-  | { type: 'alerts/fired'; keys: string[] }
-  | { type: 'template/add'; template: Template }
-  | { type: 'template/update'; template: Template }
-  | { type: 'template/delete'; id: ID }
-  | { type: 'data/import'; data: AppData }
-  | { type: 'data/reset' }
-
-export function normalizeData(d: Partial<AppData>): AppData {
-  const seed = seedData()
-  const defaults = defaultSettings()
-  const storedSeedV = d.settings?.seedV ?? 1
-  let accounts = d.accounts ?? seed.accounts
-  if (storedSeedV < 2) accounts = migrateAccountsV2(accounts)
-  return {
-    ...seed,
-    ...d,
-    accounts,
-    schema: 1,
-    settings: {
-      ...defaults,
-      ...d.settings,
-      seedV: 2,
-      reminders: { ...defaults.reminders, ...d.settings?.reminders },
-      firedKeys: d.settings?.firedKeys ?? {},
-    },
-    budgets: { perCategory: {}, ...d.budgets },
-  }
-}
-
-export function isImportable(d: unknown): d is Partial<AppData> {
-  return (
-    !!d &&
-    typeof d === 'object' &&
-    Array.isArray((d as AppData).accounts) &&
-    Array.isArray((d as AppData).transactions)
-  )
-}
 
 function loadData(): AppData {
   try {
@@ -71,91 +27,6 @@ function loadData(): AppData {
     // corrupted storage falls through to a fresh seed
   }
   return seedData()
-}
-
-const REF_FIELD: Record<Exclude<EntityKind, 'accounts'>, keyof Tx> = {
-  incomeSources: 'sourceId',
-  categories: 'categoryId',
-  funds: 'fundId',
-  heldParties: 'personId',
-}
-
-function deleteEntity(state: AppData, kind: EntityKind, id: ID, reassignTo?: ID): AppData {
-  const next: AppData = { ...state, [kind]: state[kind].filter((x) => x.id !== id) }
-  if (kind === 'accounts') {
-    next.transactions = reassignTo
-      ? state.transactions.map((tx) => {
-          if (tx.accountId !== id && tx.toAccountId !== id) return tx
-          return {
-            ...tx,
-            accountId: tx.accountId === id ? reassignTo : tx.accountId,
-            toAccountId: tx.toAccountId === id ? reassignTo : tx.toAccountId,
-          }
-        })
-      : state.transactions.filter((tx) => tx.accountId !== id && tx.toAccountId !== id)
-    if (state.settings.lastUsedAccountId === id)
-      next.settings = { ...state.settings, lastUsedAccountId: undefined }
-  } else {
-    const field = REF_FIELD[kind]
-    next.transactions = reassignTo
-      ? state.transactions.map((tx) => (tx[field] === id ? { ...tx, [field]: reassignTo } : tx))
-      : state.transactions.filter((tx) => tx[field] !== id)
-  }
-  if (kind === 'categories' && state.budgets.perCategory[id]) {
-    const perCategory = { ...state.budgets.perCategory }
-    delete perCategory[id]
-    next.budgets = { ...state.budgets, perCategory }
-  }
-  return next
-}
-
-export function reducer(state: AppData, action: Action): AppData {
-  switch (action.type) {
-    case 'tx/add':
-      return {
-        ...state,
-        transactions: [...state.transactions, action.tx],
-        settings: { ...state.settings, lastUsedAccountId: action.tx.accountId },
-      }
-    case 'tx/update':
-      return {
-        ...state,
-        transactions: state.transactions.map((t) => (t.id === action.tx.id ? action.tx : t)),
-      }
-    case 'tx/delete':
-      return { ...state, transactions: state.transactions.filter((t) => t.id !== action.id) }
-    case 'entity/add':
-      return { ...state, [action.kind]: [...state[action.kind], action.item] }
-    case 'entity/update':
-      return {
-        ...state,
-        [action.kind]: state[action.kind].map((x) => (x.id === action.item.id ? action.item : x)),
-      }
-    case 'entity/delete':
-      return deleteEntity(state, action.kind, action.id, action.reassignTo)
-    case 'budgets/set':
-      return { ...state, budgets: action.budgets }
-    case 'settings/patch':
-      return { ...state, settings: { ...state.settings, ...action.patch } }
-    case 'alerts/fired': {
-      const today = todayStr()
-      const cutoff = shiftDate(today, -62)
-      const firedKeys: Record<string, string> = {}
-      for (const [k, v] of Object.entries(state.settings.firedKeys)) if (v >= cutoff) firedKeys[k] = v
-      for (const k of action.keys) firedKeys[k] = today
-      return { ...state, settings: { ...state.settings, firedKeys } }
-    }
-    case 'template/add':
-      return { ...state, templates: [...state.templates, action.template] }
-    case 'template/update':
-      return { ...state, templates: state.templates.map((t) => (t.id === action.template.id ? action.template : t)) }
-    case 'template/delete':
-      return { ...state, templates: state.templates.filter((t) => t.id !== action.id) }
-    case 'data/import':
-      return normalizeData(action.data)
-    case 'data/reset':
-      return seedData()
-  }
 }
 
 export interface Store {
@@ -178,6 +49,9 @@ const Ctx = createContext<Store | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, dispatch] = useReducer(reducer, undefined, loadData)
+  // Display currency for every fmtTHB below us — set during render so children
+  // never format with a stale currency (see format.ts).
+  setDisplay(data.settings)
 
   useEffect(() => {
     const t = setTimeout(() => {
