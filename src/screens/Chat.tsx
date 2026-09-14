@@ -7,7 +7,7 @@ interface Msg {
   id: number
   role: 'user' | 'bot'
   blocks: Block[]
-  resolved?: Record<number, 'added' | 'cancelled'>
+  resolved?: Record<number, 'added' | 'deleted' | 'cancelled'>
 }
 
 const GREETING: Msg = {
@@ -16,7 +16,7 @@ const GREETING: Msg = {
   blocks: [
     {
       kind: 'text',
-      text: "Hi! I'm your Spendwise assistant — everything I do stays on this device.\n\nTell me things like “add 500 food” or ask “spending this month?”. I'll always ask before saving anything.",
+      text: "Hi! I'm your Spendwise assistant — everything I do stays on this device.\n\nTell me things like “add 500 food”, “50 coffee, 120 grab”, “$20 netflix”, “lent 1000 to mg mg” — or ask “spending this month?”. I'll always ask before saving anything.",
     },
   ],
 }
@@ -26,8 +26,9 @@ const QUICK: { label: string; text: string; insert?: boolean }[] = [
   { label: 'balance', text: 'balance' },
   { label: 'budget left', text: 'budget left' },
   { label: 'report', text: 'report this month' },
-  { label: 'held', text: 'who do i owe' },
+  { label: 'owe', text: 'who do i owe' },
   { label: 'records', text: 'show records this month' },
+  { label: 'undo', text: 'undo last' },
   { label: 'help', text: 'help' },
 ]
 
@@ -115,12 +116,12 @@ export function Chat({ onClose }: { onClose: () => void }) {
     } else send(q.text)
   }
 
-  const resolveConfirm = (msgId: number, blockIdx: number, action: 'added' | 'cancelled') => {
+  const resolveConfirm = (msgId: number, blockIdx: number, action: 'added' | 'deleted' | 'cancelled') => {
     const msg = msgs.find((m) => m.id === msgId)
     const block = msg?.blocks[blockIdx]
-    if (!msg || !block || block.kind !== 'confirm' || msg.resolved?.[blockIdx]) return
-    let followUp = 'Cancelled — nothing was saved.'
-    if (action === 'added') {
+    if (!msg || !block || (block.kind !== 'confirm' && block.kind !== 'delete') || msg.resolved?.[blockIdx]) return
+    let followUp = 'Cancelled — nothing was changed.'
+    if (action === 'added' && block.kind === 'confirm') {
       let tx = block.tx
       if (block.newParty) {
         const personId = store.addEntity('heldParties', { name: block.newParty })
@@ -128,6 +129,9 @@ export function Chat({ onClose }: { onClose: () => void }) {
       }
       followUp = afterSaveLine(store.data, tx)
       store.addTx(tx)
+    } else if (action === 'deleted' && block.kind === 'delete') {
+      store.deleteTx(block.txId)
+      followUp = 'Deleted ✓'
     }
     setMsgs((m) => [
       ...m.map((x) => (x.id === msgId ? { ...x, resolved: { ...x.resolved, [blockIdx]: action } } : x)),
@@ -160,15 +164,21 @@ export function Chat({ onClose }: { onClose: () => void }) {
               if (b.kind === 'stats') return <StatsBlock key={i} b={b} />
               if (b.kind === 'table') return <TableBlock key={i} b={b} />
               const state = m.resolved?.[i]
+              const isDelete = b.kind === 'delete'
               return (
                 <div key={i} className="col-sm" style={{ gap: 8 }}>
                   <p>{b.text}</p>
                   {state ? (
-                    <span className="xs muted">{state === 'added' ? '✓ Added' : '✕ Cancelled'}</span>
+                    <span className="xs muted">
+                      {state === 'added' ? '✓ Added' : state === 'deleted' ? '✓ Deleted' : '✕ Cancelled'}
+                    </span>
                   ) : (
                     <div className="rowx" style={{ gap: 8 }}>
-                      <button className="btn btn-sm btn-primary" onClick={() => resolveConfirm(m.id, i, 'added')}>
-                        <Icon name="check" size={14} /> Add it
+                      <button
+                        className={isDelete ? 'btn btn-sm btn-danger' : 'btn btn-sm btn-primary'}
+                        onClick={() => resolveConfirm(m.id, i, isDelete ? 'deleted' : 'added')}
+                      >
+                        <Icon name={isDelete ? 'trash' : 'check'} size={14} /> {isDelete ? 'Delete it' : 'Add it'}
                       </button>
                       <button className="btn btn-sm" onClick={() => resolveConfirm(m.id, i, 'cancelled')}>
                         Cancel

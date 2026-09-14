@@ -22,6 +22,7 @@ const mk = (t: Partial<Tx> & Pick<Tx, 'type' | 'amount' | 'accountId'>): Tx => (
 // Seed a little history so balance / held / spend queries have something to answer.
 const data: AppData = {
   ...seedData(),
+  heldParties: [...seedData().heldParties, { id: 'p-zaw', name: 'Ko Zaw' }, { id: 'p-mgmg', name: 'Mg Mg' }],
   transactions: [
     mk({ type: 'income', amount: 40000, accountId: 'acc-kbank', sourceId: 'src-salary' }),
     mk({ type: 'expense', amount: 1200, accountId: 'acc-kbank', categoryId: 'cat-rent' }),
@@ -30,11 +31,16 @@ const data: AppData = {
     mk({ type: 'held_add', amount: 5000, accountId: 'acc-kbank', personId: 'aunt' }),
     mk({ type: 'held_reduce', amount: 2000, accountId: 'acc-kbank', personId: 'aunt' }),
     mk({ type: 'fund_contribute', amount: 3000, accountId: 'acc-kbank', fundId: 'fund-education' }),
+    mk({ type: 'borrow', amount: 10000, accountId: 'acc-kbank', personId: 'p-zaw' }),
+    mk({ type: 'lend', amount: 1500, accountId: 'acc-cash', personId: 'p-mgmg' }),
   ],
 }
 
 type TxExpect = Partial<
-  Pick<Tx, 'type' | 'amount' | 'accountId' | 'categoryId' | 'sourceId' | 'fundId' | 'personId' | 'toAccountId' | 'date' | 'note'>
+  Pick<
+    Tx,
+    'type' | 'amount' | 'accountId' | 'categoryId' | 'sourceId' | 'fundId' | 'personId' | 'toAccountId' | 'date' | 'note' | 'origAmount' | 'origCurrency'
+  >
 >
 
 const confirmTx = (blocks: Block[]) => {
@@ -51,6 +57,8 @@ const summary = (blocks: Block[]) =>
       b.kind === 'confirm' ? `confirm:${b.tx.type}` : b.kind === 'text' ? `text:"${b.text.slice(0, 32)}"` : b.kind,
     )
     .join(' | ') || '(empty)'
+
+const confirmTxs = (blocks: Block[]) => blocks.flatMap((b) => (b.kind === 'confirm' ? [b.tx] : []))
 
 const failures: string[] = []
 let passed = 0
@@ -160,29 +168,106 @@ expectTextIncludes('help', 'add money')
 expectTextIncludes('?', 'add money')
 expectTextIncludes('add food', 'how much')
 
+/* ---------- MUST: everyday words reach the right category (synonym table + stemming) ---------- */
+expectConfirm('bought coffee 60', { type: 'expense', amount: 60, categoryId: 'cat-food' })
+expectConfirm('add 45 for lunch', { type: 'expense', amount: 45, categoryId: 'cat-food' })
+expectConfirm('groceries 800 from cash', { type: 'expense', amount: 800, categoryId: 'cat-food', accountId: 'acc-cash' })
+expectConfirm('donated 300', { type: 'expense', amount: 300, categoryId: 'cat-donations' })
+expectConfirm('grab 120', { type: 'expense', amount: 120, categoryId: 'cat-travel' })
+expectConfirm('netflix 419', { type: 'expense', amount: 419, categoryId: 'cat-fun' })
+expectConfirm('paid 900 internet bill', { type: 'expense', amount: 900, categoryId: 'cat-utilities' })
+expectConfirm('lunch with mom 300', { type: 'expense', amount: 300, categoryId: 'cat-food' })
+expectConfirm('medicine for mom 650', { type: 'expense', amount: 650, categoryId: 'cat-mom' })
+expectConfirm('treated friends 1200', { type: 'expense', amount: 1200, categoryId: 'cat-treats' })
+expectConfirm('gas station 400', { type: 'expense', amount: 400, categoryId: 'cat-travel' })
+
+/* ---------- MUST: transfers without a verb, funds without a save-verb ---------- */
+expectConfirm('1000 wise to kbank', { type: 'transfer', amount: 1000, accountId: 'acc-wise', toAccountId: 'acc-kbank' })
+expectConfirm('send 2000 to truemoney from kbank', { type: 'transfer', amount: 2000, accountId: 'acc-kbank', toAccountId: 'acc-tmn' })
+expectConfirm('500 from kbank into cash', { type: 'transfer', amount: 500, accountId: 'acc-kbank', toAccountId: 'acc-cash' })
+expectConfirm('add 500 to education', { type: 'fund_contribute', amount: 500, fundId: 'fund-education' })
+expectConfirm('add 2000 to visa', { type: 'fund_contribute', amount: 2000, fundId: 'fund-visa' })
+expectConfirm('paid 1900 visa', { type: 'expense', amount: 1900, categoryId: 'cat-visa' })
+expectConfirm('transfer 500 to education fund', { type: 'fund_contribute', amount: 500, fundId: 'fund-education' })
+
+/* ---------- MUST: debts & loans ---------- */
+expectConfirm('borrowed 5000 from ko zaw', { type: 'borrow', amount: 5000, personId: 'p-zaw' })
+expectConfirm('i owe ko zaw 3000', { type: 'borrow', amount: 3000, personId: 'p-zaw' })
+expectConfirm('repaid 2000 to ko zaw', { type: 'repay', amount: 2000, personId: 'p-zaw' })
+expectConfirm('paid back 1000 to ko zaw from cash', { type: 'repay', amount: 1000, personId: 'p-zaw', accountId: 'acc-cash' })
+expectConfirm('lent 1000 to mg mg', { type: 'lend', amount: 1000, personId: 'p-mgmg' })
+expectConfirm('mg mg borrowed 700', { type: 'lend', amount: 700, personId: 'p-mgmg' })
+expectConfirm('mg mg paid me back 500', { type: 'collect', amount: 500, personId: 'p-mgmg' })
+expectConfirm('got 300 back from mg mg', { type: 'collect', amount: 300, personId: 'p-mgmg' })
+expectConfirm('aunt paid me back 500', { type: 'collect', amount: 500, personId: 'aunt' })
+// held money keeps its meaning: returning to someone whose money you hold
+expectConfirm('gave 1500 back to aunt', { type: 'held_reduce', amount: 1500, personId: 'aunt' })
+{
+  const input = 'lent 800 to new person "Ko Denny"'
+  const blocks = assist(data, input)
+  record(input, blocks, () => {
+    const c = blocks.find((b) => b.kind === 'confirm')
+    assert.ok(c && c.kind === 'confirm', 'expected a confirm block')
+    assert.equal(c.newParty, 'Ko Denny', 'proposes creating the party')
+    assert.equal(c.tx.type, 'lend')
+  })
+}
+expectAnswer('who owes me', ['table'])
+expectTextIncludes('how much do i owe ko zaw', 'you owe ko zaw')
+expectAnswer('my debts', ['table'])
+
+/* ---------- MUST: amounts in other currencies convert into the account's currency ---------- */
+expectConfirm('$20 netflix', { type: 'expense', amount: 660, origAmount: 20, origCurrency: 'USD', categoryId: 'cat-fun' })
+expectConfirm('add 20 usd food from kbank', { type: 'expense', amount: 660, origCurrency: 'USD', accountId: 'acc-kbank' })
+expectConfirm('500k mmk food', { type: 'expense', amount: 3759.4, origAmount: 500000, origCurrency: 'MMK' })
+expectConfirm('spent 77000 vnd on coffee', { type: 'expense', amount: 100, origCurrency: 'VND', categoryId: 'cat-food' })
+expectConfirm('฿250 food', { type: 'expense', amount: 250, categoryId: 'cat-food' })
+{
+  const input = '$100 as salary to kbank'
+  const blocks = assist(data, input)
+  record(input, blocks, () => {
+    const c = blocks.find((b) => b.kind === 'confirm')
+    assert.ok(c && c.kind === 'confirm', 'expected a confirm block')
+    assert.equal(c.tx.amount, 3300)
+    assert.ok(c.text.includes('$100 (≈ ฿3,300)'), 'confirm text shows both amounts')
+  })
+}
+
+/* ---------- MUST: several entries in one message ---------- */
+{
+  const input = '50 coffee, 120 lunch and 300 grab'
+  const blocks = assist(data, input)
+  record(input, blocks, () => {
+    const txs = confirmTxs(blocks)
+    assert.equal(txs.length, 3, 'three proposals')
+    assert.deepEqual(txs.map((t) => t.amount), [50, 120, 300])
+    assert.deepEqual(txs.map((t) => t.categoryId), ['cat-food', 'cat-food', 'cat-travel'])
+  })
+}
+expectConfirm('dinner with mom and dad 500', { type: 'expense', amount: 500, categoryId: 'cat-food' })
+expectConfirm('spent 1,250 on rent', { type: 'expense', amount: 1250 })
+
+/* ---------- MUST: undo proposes deleting the newest entry, never deletes by itself ---------- */
+for (const input of ['undo', 'undo last', 'delete last entry']) {
+  const blocks = assist(data, input)
+  record(input, blocks, () => {
+    const d = blocks.find((b) => b.kind === 'delete')
+    assert.ok(d && d.kind === 'delete', 'expected a delete proposal')
+    const newest = [...data.transactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]!
+    assert.equal(d.txId, newest.id, 'targets the most recently created entry')
+    assert.ok(d.text.startsWith('Delete the last entry?'), 'asks before deleting')
+  })
+}
+
 /* ---------- fuzz: never throws, always returns something renderable ---------- */
-for (const s of ['', 'help', '?', 'add food', 'asdfghjkl qwerty', '💰💰', '1000000000', 'spent -5 food', 'add 0 food', 'the quick brown fox']) {
+for (const s of ['', 'help', '?', 'add food', 'asdfghjkl qwerty', '💰💰', '1000000000', 'spent -5 food', 'add 0 food', 'the quick brown fox', ',,,', 'and', '$', 'usd', '1,2,3']) {
   const blocks = assist(data, s)
   assert.ok(Array.isArray(blocks) && blocks.length > 0, `assist returned nothing for ${JSON.stringify(s)}`)
   assert.ok(
-    blocks.every((b) => ['text', 'stats', 'table', 'confirm'].includes(b.kind)),
+    blocks.every((b) => ['text', 'stats', 'table', 'confirm', 'delete'].includes(b.kind)),
     `assist returned an unknown block kind for ${JSON.stringify(s)}`,
   )
 }
-
-/* ---------- known NLU gaps: natural phrasings we don't handle yet (non-fatal) ---------- */
-const GAPS: { input: string; note: string }[] = [
-  { input: 'bought coffee 60', note: 'no synonym map: "coffee/lunch/dinner/groceries" should map to Daily Meals & Food' },
-  { input: 'add 45 for lunch', note: 'same — everyday food words fall through to Misc' },
-  { input: 'add 500 to education', note: '"to <fund>" without a save-verb is read as an expense, not a fund contribution' },
-  { input: '1000 wise to kbank', note: 'transfers require the literal word "transfer"/"move"' },
-  { input: 'send 2000 to truemoney from kbank', note: '"send X to Y from Z" is not parsed as a transfer' },
-  { input: 'donated 300', note: 'no stemming: "donated" should reach the Donations category' },
-  { input: 'aunt paid me back 500', note: 'a non-adjacent "...back" is not detected as a return' },
-]
-
-console.log(`Known NLU gaps (natural phrasing, future work — ${GAPS.length}):`)
-for (const g of GAPS) console.log(`  • "${g.input}" — ${g.note}\n      now → ${summary(assist(data, g.input))}`)
 
 if (failures.length) {
   console.error(`\n✗ assistant.check: ${failures.length} of ${passed + failures.length} scenarios FAILED:`)
