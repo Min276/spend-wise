@@ -49,7 +49,7 @@ export function Donut({
               />
             )
           })}
-      <text x={c} y={c - 4} textAnchor="middle" fill="var(--text)" fontSize={20} fontWeight={700} fontFamily="'Space Grotesk', sans-serif">
+      <text className="svg-amt" x={c} y={c - 4} textAnchor="middle" fill="var(--text)" fontSize={20} fontWeight={700} fontFamily="'Space Grotesk', sans-serif">
         {centerValue}
       </text>
       <text x={c} y={c + 14} textAnchor="middle" {...AXIS}>
@@ -98,7 +98,7 @@ export function Bars({
               <rect x={x} y={height - padB - h} width={bw} height={Math.max(h, 2)} rx={3} fill={color} />
             )}
             {n <= 8 && p.value > 0 && (
-              <text x={x + bw / 2} y={height - padB - h - 5} textAnchor="middle" {...AXIS}>
+              <text className="svg-amt" x={x + bw / 2} y={height - padB - h - 5} textAnchor="middle" {...AXIS}>
                 {fmtCompact(p.value)}
               </text>
             )}
@@ -191,7 +191,7 @@ export function Lines({
       {gridVals.map((v, i) => (
         <g key={i}>
           <line x1={padL} x2={W} y1={y(v)} y2={y(v)} stroke="var(--border)" strokeDasharray={i === 0 && lo === 0 ? '' : '3 3'} />
-          <text x={padL - 4} y={y(v) + 3} textAnchor="end" {...AXIS}>
+          <text className="svg-amt" x={padL - 4} y={y(v) + 3} textAnchor="end" {...AXIS}>
             {fmtCompact(v)}
           </text>
         </g>

@@ -887,10 +887,12 @@ input[type='checkbox'].switch:checked::after {
   letter-spacing: 3px;
 }
 
-/* sentences that embed amounts stay blurred instead */
+/* sentences that embed amounts stay blurred instead; so do SVG chart labels,
+   which CSS ::after can't reach */
 [data-privacy='on'] .banner,
 [data-privacy='on'] .toast,
-[data-privacy='on'] .bubble p {
+[data-privacy='on'] .bubble p,
+[data-privacy='on'] .svg-amt {
   filter: blur(7px);
   user-select: none;
 }
