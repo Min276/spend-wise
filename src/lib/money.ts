@@ -73,9 +73,13 @@ export function accountDelta(tx: Tx, accountId: ID): number {
   switch (tx.type) {
     case 'income':
     case 'held_add':
+    case 'borrow':
+    case 'collect':
       return tx.amount
     case 'expense':
     case 'held_reduce':
+    case 'repay':
+    case 'lend':
       return -tx.amount
     case 'fund_contribute':
     case 'fund_withdraw':
@@ -89,9 +93,29 @@ export function accountRaw(txs: Tx[], accountId: ID): number {
   return sum
 }
 
-/* ---------- held (custodial) funds ---------- */
+/* ---------- held (custodial) funds, debts & loans ---------- */
 
 const heldSign = (t: TxType) => (t === 'held_add' ? 1 : t === 'held_reduce' ? -1 : 0)
+// What I owe others (borrowed, not yet repaid) / what others owe me (lent, not yet back).
+const debtSign = (t: TxType) => (t === 'borrow' ? 1 : t === 'repay' ? -1 : 0)
+const lentSign = (t: TxType) => (t === 'lend' ? 1 : t === 'collect' ? -1 : 0)
+
+// Σ sign(tx) × ฿ over the ledger, optionally for one party. Held, debt and lent
+// balances are all this fold with a different sign table.
+function signedTotalTHB(data: AppData, signOf: (t: TxType) => number, personId?: ID): number {
+  const accounts = byId(data.accounts)
+  let sum = 0
+  for (const tx of data.transactions)
+    if (!personId || tx.personId === personId) sum += signOf(tx.type) * toTHB(tx.amount, accounts.get(tx.accountId))
+  return sum
+}
+
+export const heldForPartyTHB = (data: AppData, personId: ID) => signedTotalTHB(data, heldSign, personId)
+export const heldTotalTHB = (data: AppData) => signedTotalTHB(data, heldSign)
+export const debtForPartyTHB = (data: AppData, personId: ID) => signedTotalTHB(data, debtSign, personId)
+export const debtTotalTHB = (data: AppData) => signedTotalTHB(data, debtSign)
+export const lentForPartyTHB = (data: AppData, personId: ID) => signedTotalTHB(data, lentSign, personId)
+export const lentTotalTHB = (data: AppData) => signedTotalTHB(data, lentSign)
 
 // Liability sitting inside one account, in that account's currency.
 export function heldInAccount(txs: Tx[], accountId: ID): number {
@@ -108,34 +132,18 @@ export function heldPartyInAccount(txs: Tx[], personId: ID, accountId: ID): numb
   return sum
 }
 
-// Total owed to one person, in ฿ (converted per holding account).
-export function heldForPartyTHB(data: AppData, personId: ID): number {
-  const accounts = byId(data.accounts)
-  let sum = 0
-  for (const tx of data.transactions)
-    if (tx.personId === personId)
-      sum += heldSign(tx.type) * toTHB(tx.amount, accounts.get(tx.accountId))
-  return sum
-}
-
-export function heldTotalTHB(data: AppData): number {
-  const accounts = byId(data.accounts)
-  let sum = 0
-  for (const tx of data.transactions)
-    sum += heldSign(tx.type) * toTHB(tx.amount, accounts.get(tx.accountId))
-  return sum
-}
-
 // My real spendable balance = raw − everything held for others in that account.
 export function spendable(txs: Tx[], accountId: ID): number {
   return accountRaw(txs, accountId) - heldInAccount(txs, accountId)
 }
 
-// Personal money only: Σ spendable across accounts, converted to ฿.
+// Personal money only: Σ spendable across accounts, converted to ฿, minus what I
+// still owe on loans (borrowed cash sits in an account but isn't mine to keep).
+// Money lent out is NOT added back — it's tracked as "owed to me" until it returns.
 export function netWorthTHB(data: AppData): number {
   let sum = 0
   for (const acc of data.accounts) sum += toTHB(spendable(data.transactions, acc.id), acc)
-  return sum
+  return sum - debtTotalTHB(data)
 }
 
 /* ---------- funds (earmarked savings) ---------- */
@@ -270,8 +278,8 @@ export function balanceSeriesTHB(
         d += toTHB(tx.toAmount ?? tx.amount, accounts.get(tx.toAccountId ?? ''))
       } else {
         d += accountDelta(tx, tx.accountId) * (accounts.get(tx.accountId)?.fxRateToTHB ?? 1)
-        // net worth excludes held money
-        d -= heldSign(tx.type) * toTHB(tx.amount, accounts.get(tx.accountId))
+        // net worth excludes held money and outstanding debt
+        d -= (heldSign(tx.type) + debtSign(tx.type)) * toTHB(tx.amount, accounts.get(tx.accountId))
       }
       return d
     }

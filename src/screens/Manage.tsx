@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import type { Account, Category, EntityKind, HeldParty, ID, IncomeSource } from '../lib/types'
-import { heldForPartyTHB } from '../lib/money'
+import { debtForPartyTHB, heldForPartyTHB, lentForPartyTHB } from '../lib/money'
 import { fmtTHB } from '../lib/format'
 import { CHART_PALETTE } from '../lib/seed'
 import { ConfirmDialog, Field, Overlay, RowIcon, Sheet, BackButton, parseAmount } from '../components/ui'
@@ -37,16 +37,25 @@ export function DeleteEntityDialog({
   const [mode, setMode] = useState<'reassign' | 'delete'>(candidates.length ? 'reassign' : 'delete')
   const [target, setTarget] = useState<ID>(candidates[0]?.id ?? '')
 
-  const heldBalance = kind === 'heldParties' ? heldForPartyTHB(data, id) : 0
-  if (kind === 'heldParties' && Math.abs(heldBalance) > 0.005) {
+  // A party with an open balance can't be deleted — settle it first so no money vanishes.
+  const open =
+    kind === 'heldParties'
+      ? [
+          { v: heldForPartyTHB(data, id), msg: (n: string) => `You are holding ${n} for ${name} — record “I returned money” first.` },
+          { v: debtForPartyTHB(data, id), msg: (n: string) => `You still owe ${name} ${n} — record “I repaid” first.` },
+          { v: lentForPartyTHB(data, id), msg: (n: string) => `${name} still owes you ${n} — record “Got paid back” first.` },
+        ].filter((x) => Math.abs(x.v) > 0.005)
+      : []
+  if (open.length) {
     return (
       <Overlay onClose={onClose} center>
         <div className="dialog" role="alertdialog" aria-modal="true">
-          <h3>Still holding their money</h3>
-          <p className="sub">
-            You are holding {fmtTHB(heldBalance)} for {name}. Record an “I returned money” entry to bring
-            their balance to zero before deleting.
-          </p>
+          <h3>Balance not settled</h3>
+          {open.map((x, i) => (
+            <p className="sub" key={i}>
+              {x.msg(fmtTHB(x.v))}
+            </p>
+          ))}
           <button className="btn btn-primary" onClick={onClose}>
             OK
           </button>
@@ -407,7 +416,7 @@ export function ManagePeople() {
       <div className="screen-head">
         <span className="rowx">
           <BackButton to="/settings" />
-          <h1>People (held funds)</h1>
+          <h1>People & organizations</h1>
         </span>
         <button className="btn btn-sm btn-primary" onClick={() => setEditing('new')}>
           <Icon name="plus" size={16} /> Add
@@ -419,7 +428,16 @@ export function ManagePeople() {
             <RowIcon emoji="🤝" color="#D97706" />
             <button className="lrow-main" style={{ textAlign: 'left' }} onClick={() => setEditing(p)}>
               <span className="t">{p.name}</span>
-              <span className="s money">{fmtTHB(heldForPartyTHB(data, p.id))} held</span>
+              <span className="s">
+                {[
+                  [heldForPartyTHB(data, p.id), 'held'],
+                  [debtForPartyTHB(data, p.id), 'you owe'],
+                  [lentForPartyTHB(data, p.id), 'owed to you'],
+                ]
+                  .filter(([v]) => Math.abs(v as number) > 0.005)
+                  .map(([v, w]) => `${fmtTHB(v as number)} ${w}`)
+                  .join(' · ') || 'Nothing outstanding'}
+              </span>
             </button>
             <button className="btn-icon" onClick={() => setDeleting(p)} aria-label={`Delete ${p.name}`}>
               <Icon name="trash" size={18} />

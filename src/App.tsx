@@ -16,6 +16,7 @@ import { Settings } from './screens/Settings'
 import { ManageAccounts, ManageCategories, ManagePeople, ManageSources } from './screens/Manage'
 import { Funds } from './screens/Funds'
 import { Held, HeldHistory } from './screens/Held'
+import { Debts, DebtHistory } from './screens/Debts'
 import { Budgets } from './screens/Budgets'
 import { NotifSettings } from './screens/NotifSettings'
 import { Templates } from './screens/Templates'
@@ -41,6 +42,8 @@ function Screens() {
       return <Funds />
     case '/held':
       return <Held />
+    case '/debts':
+      return <Debts />
     case '/budgets':
       return <Budgets />
     case '/settings':
@@ -60,6 +63,8 @@ function Screens() {
     default:
       if (route.startsWith('/held/'))
         return <HeldHistory personId={decodeURIComponent(route.slice('/held/'.length))} />
+      if (route.startsWith('/debts/'))
+        return <DebtHistory personId={decodeURIComponent(route.slice('/debts/'.length))} />
       return <Dashboard />
   }
 }

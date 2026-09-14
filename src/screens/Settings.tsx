@@ -29,6 +29,8 @@ const HERO_STATS = [
   { key: 'total', label: 'Total · incl. held' },
   { key: 'held', label: 'Held for others' },
   { key: 'funds', label: 'In savings funds' },
+  { key: 'owe', label: 'I owe (when non-zero)' },
+  { key: 'lent', label: 'Owed to me (when non-zero)' },
   { key: 'budgetDay', label: 'Budget left today' },
   { key: 'budgetMonth', label: 'Budget left this month' },
 ]
@@ -198,8 +200,8 @@ export function Settings() {
           />
           <NavRow
             icon="users"
-            label="People (held funds)"
-            sub={`${data.heldParties.length} people`}
+            label="People & organizations"
+            sub={`${data.heldParties.length} · held funds, debts & loans`}
             to="/settings/people"
           />
           <NavRow icon="bell" label="Notifications & reminders" to="/settings/notifications" />

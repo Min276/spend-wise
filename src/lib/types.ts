@@ -46,6 +46,14 @@ export type TxType =
   | 'fund_withdraw'
   | 'held_add'
   | 'held_reduce'
+  | 'borrow'
+  | 'repay'
+  | 'lend'
+  | 'collect'
+
+// Money that changes hands with a party: held (custodial) and debt (borrow/repay,
+// lend/collect) types all tag the party via personId.
+export const DEBT_TYPES: TxType[] = ['borrow', 'repay', 'lend', 'collect']
 
 export interface Tx {
   id: ID

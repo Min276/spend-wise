@@ -144,6 +144,11 @@
   border-color: color-mix(in srgb, var(--held-bright) 35%, var(--border));
 }
 
+.tint-debt {
+  background: color-mix(in srgb, var(--debt) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--debt) 30%, var(--border));
+}
+
 .tint-danger {
   background: color-mix(in srgb, var(--expense) 9%, var(--surface));
   border-color: color-mix(in srgb, var(--expense) 35%, var(--border));
@@ -168,6 +173,8 @@
 .amt-out { color: var(--expense); }
 .amt-sav { color: var(--savings); }
 .amt-held { color: var(--held); }
+.amt-debt { color: var(--debt); }
+.amt-lent { color: var(--lent); }
 .amt-neutral { color: var(--text-secondary); }
 
 /* ---------- layout utils ---------- */
@@ -291,6 +298,12 @@ select.input {
   transition: background 0.15s ease, color 0.15s ease;
   white-space: nowrap;
   padding: 0 var(--sp-2);
+}
+
+/* six or more segments: tighten so the row still fits a phone width */
+.seg:has(> :nth-child(6)) > button {
+  padding: 0 6px;
+  font-size: var(--fs-xs);
 }
 
 .seg > button.on {

@@ -67,7 +67,8 @@ export function Held() {
   const othersTotal = othersWithTotals.reduce((s, o) => s + o.total, 0)
   const activeOthers = othersWithTotals.filter((o) => o.total > 0.005).length
   const grand = heldTotalTHB(data)
-  const records = (p: HeldParty) => filterTxs(data.transactions, { personId: p.id }).length
+  const records = (p: HeldParty) =>
+    filterTxs(data.transactions, { personId: p.id, types: ['held_add', 'held_reduce'] }).length
 
   return (
     <div className="screen">
@@ -171,35 +172,16 @@ export function Held() {
   )
 }
 
-export function HeldHistory({ personId }: { personId: string }) {
-  const { data, updateEntity } = useStore()
-  const openSheet = useAddSheet()
+// Screen header for one party: back, name, rename + delete (shared by held & debt history).
+export function PartyHead({ person, backTo }: { person: HeldParty; backTo: string }) {
+  const { updateEntity } = useStore()
   const [renaming, setRenaming] = useState(false)
   const [deleting, setDeleting] = useState(false)
-
-  const person = data.heldParties.find((p) => p.id === personId)
-  if (!person)
-    return (
-      <div className="screen">
-        <div className="screen-head">
-          <span className="rowx">
-            <BackButton to="/held" />
-            <h1>Not found</h1>
-          </span>
-        </div>
-      </div>
-    )
-
-  const total = heldForPartyTHB(data, person.id)
-  const history = filterTxs(data.transactions, { personId: person.id }).sort(
-    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
-  )
-
   return (
-    <div className="screen">
+    <>
       <div className="screen-head">
         <span className="rowx">
-          <BackButton to="/held" />
+          <BackButton to={backTo} />
           <h1>{person.name}</h1>
         </span>
         <span className="rowx" style={{ gap: 4 }}>
@@ -211,6 +193,49 @@ export function HeldHistory({ personId }: { personId: string }) {
           </button>
         </span>
       </div>
+      {renaming && (
+        <NameForm
+          title="Rename"
+          initial={person.name}
+          onSave={(name) => updateEntity('heldParties', { ...person, name })}
+          onClose={() => setRenaming(false)}
+        />
+      )}
+      {deleting && (
+        <DeleteEntityDialog kind="heldParties" id={person.id} name={person.name} onClose={() => setDeleting(false)} />
+      )}
+    </>
+  )
+}
+
+export function NotFound({ backTo }: { backTo: string }) {
+  return (
+    <div className="screen">
+      <div className="screen-head">
+        <span className="rowx">
+          <BackButton to={backTo} />
+          <h1>Not found</h1>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export function HeldHistory({ personId }: { personId: string }) {
+  const { data } = useStore()
+  const openSheet = useAddSheet()
+
+  const person = data.heldParties.find((p) => p.id === personId)
+  if (!person) return <NotFound backTo="/held" />
+
+  const total = heldForPartyTHB(data, person.id)
+  const history = filterTxs(data.transactions, { personId: person.id, types: ['held_add', 'held_reduce'] }).sort(
+    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
+  )
+
+  return (
+    <div className="screen">
+      <PartyHead person={person} backTo="/held" />
 
       <div className="card tint-held col-sm">
         <span className="label" style={{ color: 'var(--held)' }}>
@@ -243,18 +268,6 @@ export function HeldHistory({ personId }: { personId: string }) {
             <TxRow key={tx.id} tx={tx} onClick={() => openSheet({ tx })} />
           ))}
         </div>
-      )}
-
-      {renaming && (
-        <NameForm
-          title="Rename person"
-          initial={person.name}
-          onSave={(name) => updateEntity('heldParties', { ...person, name })}
-          onClose={() => setRenaming(false)}
-        />
-      )}
-      {deleting && (
-        <DeleteEntityDialog kind="heldParties" id={person.id} name={person.name} onClose={() => setDeleting(false)} />
       )}
     </div>
   )

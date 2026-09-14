@@ -168,9 +168,20 @@ function txLabel(data: AppData, tx: Tx): string {
       return tx.type === 'fund_contribute' ? `Saved → ${f}` : `Withdrew ← ${f}`
     }
     case 'held_add':
-    case 'held_reduce': {
+    case 'held_reduce':
+    case 'borrow':
+    case 'repay':
+    case 'lend':
+    case 'collect': {
       const p = data.heldParties.find((x) => x.id === tx.personId)?.name ?? '?'
-      return tx.type === 'held_add' ? `Held for ${p}` : `Returned to ${p}`
+      return {
+        held_add: `Held for ${p}`,
+        held_reduce: `Returned to ${p}`,
+        borrow: `Borrowed from ${p}`,
+        repay: `Repaid ${p}`,
+        lend: `Lent to ${p}`,
+        collect: `${p} paid back`,
+      }[tx.type]
     }
   }
 }
@@ -183,6 +194,10 @@ const SIGN: Record<Tx['type'], string> = {
   fund_withdraw: '−',
   held_add: '+',
   held_reduce: '−',
+  borrow: '+',
+  repay: '−',
+  lend: '−',
+  collect: '+',
 }
 
 function txTable(data: AppData, txs: Tx[], title: string, cap = 12): Block {
@@ -383,6 +398,10 @@ function confirmBlock(data: AppData, tx: Omit<Tx, 'id' | 'createdAt'>, extra = '
     fund_withdraw: 'fund withdrawal',
     held_add: 'held money',
     held_reduce: 'held return',
+    borrow: 'loan taken',
+    repay: 'repayment',
+    lend: 'loan given',
+    collect: 'loan repaid to you',
   }
   const dateWord = tx.date === todayStr() ? 'today' : fmtDate(tx.date)
   return {

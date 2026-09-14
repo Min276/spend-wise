@@ -4,7 +4,11 @@ import { migrateAccountsV2, seedData } from '../src/lib/seed.ts'
 import {
   accountRaw,
   balanceSeriesTHB,
+  debtForPartyTHB,
+  debtTotalTHB,
   expenseTHB,
+  lentForPartyTHB,
+  lentTotalTHB,
   filterTxs,
   fundBalanceTHB,
   fundGrowthTHB,
@@ -136,6 +140,37 @@ const fired: AppData = {
   settings: { ...over.settings, firedKeys: { [`d-over-${today}`]: today } },
 }
 assert.ok(!newAlerts(fired).some((e) => e.key === `d-over-${today}`), 'no duplicate same-day alert')
+
+// debts & loans: borrowed cash raises the raw balance but is owed back, so it
+// never counts as income or net worth; lent cash leaves the account and is
+// tracked as "owed to me" without being added back until it's collected.
+const loans: AppData = {
+  ...data,
+  transactions: [
+    ...txs,
+    tx({ type: 'borrow', amount: 1000, accountId: 'k', personId: 'px' }),
+    tx({ type: 'repay', amount: 400, accountId: 't', personId: 'px' }),
+    tx({ type: 'lend', amount: 250, accountId: 'k', personId: 'aunt' }),
+    tx({ type: 'collect', amount: 50, accountId: 'k', personId: 'aunt' }),
+  ],
+}
+assert.equal(accountRaw(loans.transactions, 'k'), 3150 + 1000 - 250 + 50, 'borrow/collect credit, lend debits')
+assert.equal(accountRaw(loans.transactions, 't'), -30 - 400, 'repay debits the paying account')
+assert.equal(debtForPartyTHB(loans, 'px'), 600, 'still owe 1000 - 400')
+assert.equal(debtTotalTHB(loans), 600)
+assert.equal(lentForPartyTHB(loans, 'aunt'), 200, 'still owed 250 - 50')
+assert.equal(lentTotalTHB(loans), 200)
+assert.equal(incomeTHB(loans, yday, today), incomeTHB(data, yday, today), 'loans are not income')
+assert.equal(expenseTHB(loans, yday, today), expenseTHB(data, yday, today), 'loans are not expenses')
+assert.equal(
+  netWorthTHB(loans),
+  netWorthTHB(data) + (1000 - 250 + 50) - 400 - 600,
+  'net worth = cash movement minus outstanding debt; lent money not added back',
+)
+assert.equal(netWorthTHB(loans), netWorthTHB(data) - 200, 'net effect: only the 200 still lent out is missing')
+const nwLoans = balanceSeriesTHB(loans, 'all', 'day', yday, today)
+assert.equal(nwLoans[nwLoans.length - 1]!.value, netWorthTHB(loans), 'net-worth trend agrees with debts')
+assert.equal(filterTxs(loans.transactions, { personId: 'px', types: ['borrow', 'repay'] }).length, 2)
 
 // v2 account migration: renames old seed names, adds Cash, applies the order
 const legacy = migrateAccountsV2([

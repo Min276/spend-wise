@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { useAddSheet } from '../lib/sheet'
-import type { ID, Tx, TxType } from '../lib/types'
+import { DEBT_TYPES, type ID, type Tx, type TxType } from '../lib/types'
 import { byId, filterTxs, toTHB } from '../lib/money'
 import { fmtDate, fmtTHB } from '../lib/format'
 import { TxRow } from '../components/TxRow'
@@ -15,6 +15,7 @@ const TYPE_CHIPS: { key: string; label: string; types?: TxType[] }[] = [
   { key: 'transfer', label: 'Transfers', types: ['transfer'] },
   { key: 'fund', label: 'Savings', types: ['fund_contribute', 'fund_withdraw'] },
   { key: 'held', label: 'Held', types: ['held_add', 'held_reduce'] },
+  { key: 'debt', label: 'Debts', types: DEBT_TYPES },
 ]
 
 export function Ledger() {

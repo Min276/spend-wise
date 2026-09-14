@@ -20,6 +20,8 @@
   --savings: #4F46E5;
   --held: #D97706;
   --held-bright: #F59E0B;
+  --debt: #E11D48;
+  --lent: #0284C7;
   --primary: #0D9488;
   --on-primary: #FFFFFF;
 
@@ -94,6 +96,8 @@
   --savings: #818CF8;
   --held: #FBBF24;
   --held-bright: #FBBF24;
+  --debt: #FB7185;
+  --lent: #38BDF8;
   --primary: #14B8A6;
   --on-primary: #04211D;
 

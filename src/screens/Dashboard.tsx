@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import { useAddSheet } from '../lib/sheet'
 import {
+  debtTotalTHB,
   expenseTHB,
   fundBalanceTHB,
   heldTotalTHB,
   incomeTHB,
+  lentTotalTHB,
   monthOf,
   netWorthTHB,
   savingsNetTHB,
@@ -70,9 +72,11 @@ export function Dashboard() {
   const overD = budgets.dailyLimit && spentD > budgets.dailyLimit
   const overM = budgets.monthlyBudget && spentM > budgets.monthlyBudget
   const held = heldTotalTHB(data)
+  const owe = debtTotalTHB(data)
+  const lent = lentTotalTHB(data)
 
   const legit = netWorthTHB(data)
-  const totalInclHeld = legit + held
+  const totalInclHeld = legit + held + owe
   const inFunds = data.funds.reduce((s, f) => s + fundBalanceTHB(data, f.id), 0)
   const leftToday = budgets.dailyLimit ? budgets.dailyLimit - spentD : undefined
   const leftMonth = budgets.monthlyBudget ? budgets.monthlyBudget - spentM : undefined
@@ -86,7 +90,7 @@ export function Dashboard() {
     <div className="screen screen-dash">
       <div className="hero-card col-sm">
         <div className="spread">
-          <span className="hero-label">My money · held excluded</span>
+          <span className="hero-label">My money · held{owe > 0.005 ? ' & debts' : ''} excluded</span>
           <button
             className="btn-icon"
             style={{ color: '#fff', minHeight: 34, minWidth: 34, opacity: 0.9 }}
@@ -116,6 +120,8 @@ export function Dashboard() {
           {showStat('total') && <HeroStat label="Total · incl. held" value={fmtTHB(totalInclHeld)} />}
           {showStat('held') && <HeroStat label="Held for others" value={fmtTHB(held)} />}
           {showStat('funds') && <HeroStat label="In savings funds" value={fmtTHB(inFunds)} />}
+          {showStat('owe') && owe > 0.005 && <HeroStat label="I owe" value={fmtTHB(owe)} warn />}
+          {showStat('lent') && lent > 0.005 && <HeroStat label="Owed to me" value={fmtTHB(lent)} />}
           {showStat('budgetDay') && leftToday !== undefined && (
             <HeroStat label="Budget left today" value={fmtLeft(leftToday)} warn={leftToday < 0} />
           )}
@@ -196,6 +202,23 @@ export function Dashboard() {
           </button>
           <Reconciliation />
         </>
+      )}
+
+      {(owe > 0.005 || lent > 0.005) && (
+        <button className="card tint-debt spread" onClick={() => navigate('/debts')}>
+          <span className="rowx">
+            <span style={{ fontSize: 20 }} aria-hidden>
+              {owe > 0.005 ? '💳' : '🤲'}
+            </span>
+            <span className="small bold">{owe > 0.005 ? 'Debts to repay' : 'Money lent out'}</span>
+          </span>
+          <span className="rowx" style={{ gap: 6 }}>
+            <span className={`money bold ${owe > 0.005 ? 'amt-debt' : 'amt-lent'}`}>
+              {fmtTHB(owe > 0.005 ? owe : lent)}
+            </span>
+            <Icon name="chevron" size={16} />
+          </span>
+        </button>
       )}
 
       <div className="col-sm">

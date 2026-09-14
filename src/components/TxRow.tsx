@@ -66,6 +66,20 @@ export function TxRow({ tx, onClick }: { tx: Tx; onClick?: () => void }) {
       amountCls = 'amt-held'
       break
     }
+    case 'borrow':
+    case 'repay':
+    case 'lend':
+    case 'collect': {
+      const name = data.heldParties.find((p) => p.id === tx.personId)?.name ?? '?'
+      const debt = tx.type === 'borrow' || tx.type === 'repay'
+      icon = debt ? '💳' : '🤲'
+      color = debt ? '#E11D48' : '#0284C7'
+      title = { borrow: `Borrowed from ${name}`, repay: `Repaid ${name}`, lend: `Lent to ${name}`, collect: `${name} paid back` }[tx.type]
+      const out = tx.type === 'repay' || tx.type === 'lend'
+      amountText = (out ? '−' : '+') + fmtMoney(tx.amount, cur)
+      amountCls = debt ? 'amt-debt' : 'amt-lent'
+      break
+    }
   }
 
   if (tx.note) sub += ` · ${tx.note}`

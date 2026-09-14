@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../lib/store'
-import type { ID, Tx, TxType } from '../lib/types'
+import { DEBT_TYPES, type ID, type Tx, type TxType } from '../lib/types'
 import { todayStr } from '../lib/money'
 import { fmtMoney, fmtTHB, symbolOf } from '../lib/format'
 import { AmountInput, ConfirmDialog, Field, parseAmount, Seg, Sheet } from './ui'
@@ -11,14 +11,19 @@ export interface SheetOpts {
   preset?: Partial<Tx>
 }
 
-type Kind = 'expense' | 'income' | 'transfer' | 'fund' | 'held'
+type Kind = 'expense' | 'income' | 'transfer' | 'fund' | 'held' | 'debt'
+type DebtType = 'borrow' | 'repay' | 'lend' | 'collect'
+
+const isDebt = (t: TxType): t is DebtType => DEBT_TYPES.includes(t)
 
 const kindOf = (t: TxType): Kind =>
   t === 'fund_contribute' || t === 'fund_withdraw'
     ? 'fund'
     : t === 'held_add' || t === 'held_reduce'
       ? 'held'
-      : t
+      : isDebt(t)
+        ? 'debt'
+        : t
 
 interface ChipItem {
   id: ID
@@ -94,6 +99,7 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
   const [dir, setDir] = useState<'in' | 'out'>(
     init?.type === 'fund_withdraw' || init?.type === 'held_reduce' ? 'out' : 'in',
   )
+  const [debtType, setDebtType] = useState<DebtType>(init?.type && isDebt(init.type) ? init.type : 'borrow')
   const [amountStr, setAmountStr] = useState(init?.amount ? String(init.amount) : '')
   const [toAmountStr, setToAmountStr] = useState(tx?.toAmount ? String(tx.toAmount) : '')
   const [accountId, setAccountId] = useState<ID>(
@@ -126,7 +132,10 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
         ? dir === 'in'
           ? 'held_add'
           : 'held_reduce'
-        : kind
+        : kind === 'debt'
+          ? debtType
+          : kind
+  const withParty = kind === 'held' || kind === 'debt'
 
   const valid =
     amount > 0 &&
@@ -136,7 +145,7 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
     (kind !== 'income' || !!sourceId) &&
     (kind !== 'transfer' || (!!toAccountId && toAccountId !== accountId)) &&
     (kind !== 'fund' || !!fundId) &&
-    (kind !== 'held' || !!personId)
+    (!withParty || !!personId)
 
   const buildFields = () => ({
     type: txType,
@@ -150,7 +159,7 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
     toAccountId: kind === 'transfer' ? toAccountId : undefined,
     toAmount: cross ? parseAmount(toAmountStr) || suggestedTo : undefined,
     fundId: kind === 'fund' ? fundId : undefined,
-    personId: kind === 'held' ? personId : undefined,
+    personId: withParty ? personId : undefined,
   })
 
   const save = () => {
@@ -179,6 +188,7 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
           { value: 'transfer', label: 'Transfer' },
           { value: 'fund', label: 'Save' },
           { value: 'held', label: 'Held' },
+          { value: 'debt', label: 'Debt' },
         ]}
         value={kind}
         onChange={setKind}
@@ -258,7 +268,38 @@ export function AddSheet({ opts, onClose }: { opts: SheetOpts; onClose: () => vo
         </>
       )}
 
-      <Field label={kind === 'transfer' ? 'From account' : kind === 'income' ? 'Into account' : 'Account'}>
+      {kind === 'debt' && (
+        <>
+          <Seg
+            options={[
+              { value: 'borrow', label: 'I borrowed' },
+              { value: 'repay', label: 'I repaid' },
+              { value: 'lend', label: 'I lent' },
+              { value: 'collect', label: 'Got back' },
+            ]}
+            value={debtType}
+            onChange={setDebtType}
+          />
+          <Field label={debtType === 'borrow' || debtType === 'repay' ? 'Who lent it? (person / organization)' : 'Who owes you?'}>
+            <ChipPick
+              items={data.heldParties.map((p) => ({ id: p.id, label: p.name }))}
+              value={personId}
+              onChange={setPersonId}
+              onNew={(name) => setPersonId(addEntity('heldParties', { name }))}
+            />
+          </Field>
+        </>
+      )}
+
+      <Field
+        label={
+          kind === 'transfer' || txType === 'repay' || txType === 'lend'
+            ? 'From account'
+            : kind === 'income' || txType === 'borrow' || txType === 'collect'
+              ? 'Into account'
+              : 'Account'
+        }
+      >
         <ChipPick items={accountChips} value={accountId} onChange={setAccountId} />
       </Field>
 

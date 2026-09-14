@@ -1,7 +1,7 @@
 import { Icon, type IconName } from './Icons'
 import { navigate, useRoute } from '../lib/router'
 
-const MORE_ROUTES = ['/more', '/funds', '/held', '/budgets', '/settings']
+const MORE_ROUTES = ['/more', '/funds', '/held', '/debts', '/budgets', '/settings']
 
 const tabs: { to: string; icon: IconName; label: string }[] = [
   { to: '/', icon: 'home', label: 'Home' },
